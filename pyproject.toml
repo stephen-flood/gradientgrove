@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradientgrove"
-version = "0.0.1"
+version = "0.1.0"
 authors = [
     {name="Stephen Flood", email="stephen.flood@bridgew.edu"}
 ]
-description = "Local python scripts for reuse"
+description = "Python scripts to allow the creation of both documents and slideshow from a single Markdown file, or a Mkdocs project.  Create a markdown file with mkdocs-style admonitions, compile to html, revealjs, latex, and beamer outputs."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
@@ -17,6 +17,9 @@ classifiers = [
 ]
 license = "GPL-3.0-only"
 license-files = ["LICEN[CS]E*"]
+
+[tool.setuptools.package-data]
+gradientgrove = ["gradientgrove.css"]
 
 [project.urls]
 Homepage = "https://gradientgrove.com"
