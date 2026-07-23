@@ -1,0 +1,9 @@
+LICENSE
+README.md
+pyproject.toml
+src/__init__.py
+src/example.py
+src/gradientgrove.egg-info/PKG-INFO
+src/gradientgrove.egg-info/SOURCES.txt
+src/gradientgrove.egg-info/dependency_links.txt
+src/gradientgrove.egg-info/top_level.txt

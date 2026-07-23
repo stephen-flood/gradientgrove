@@ -1,0 +1,37 @@
+Metadata-Version: 2.4
+Name: gradientgrove
+Version: 0.0.1
+Summary: Local python scripts for reuse
+Author-email: Stephen Flood <stephen.flood@bridgew.edu>
+License-Expression: GPL-3.0-only
+Project-URL: Homepage, https://gradientgrove.com
+Project-URL: Issues, https://gradientgrove.com
+Classifier: Programming Language :: Python :: 3
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
+# Example Package
+
+[Python Packaging User Guide](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
+
+1. Directory structure
+2. `pyproject.toml`
+3. License
+4. Generate distribution archives
+
+    In the directory containing `pyproject.toml` run 
+    ```
+    python -m pip install --upgrade build
+    python -m build
+    ```
+
+5. Upload archives 
+
+    ```
+    python -m pip install --upgrade twine
+    python3 -m twine upload dist/*
+    ```
+    
