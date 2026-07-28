@@ -2,7 +2,11 @@ LICENSE
 README.md
 pyproject.toml
 src/__init__.py
-src/example.py
+src/gradientgrove/gradientgrove.css
+src/gradientgrove/latex_fast_renderer.py
+src/gradientgrove/latex_fence.py
+src/gradientgrove/markdown_ast.py
+src/gradientgrove/markdown_publish.py
 src/gradientgrove.egg-info/PKG-INFO
 src/gradientgrove.egg-info/SOURCES.txt
 src/gradientgrove.egg-info/dependency_links.txt
