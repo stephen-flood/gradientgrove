@@ -1,22 +1,91 @@
-# Example Package
+# gradientgrove
 
-[Python Packaging User Guide](https://packaging.python.org/en/latest/tutorials/packaging-projects/)
+Local Python scripts for reusable Markdown, LaTeX, and publishing workflows.
 
-1. Directory structure
-2. `pyproject.toml`
-3. License
-4. Generate distribution archives
+## Command-line help
 
-    In the directory containing `pyproject.toml` run 
-    ```
-    python -m pip install --upgrade build
-    python -m build
-    ```
+Both scripts use `argparse`, so pass `-h` or `--help` to see the current usage and options:
 
-5. Upload archives 
+```bash
+gradientgrove-publish --help
+gradientgrove-latex-to-markdown --help
+```
 
-    ```
-    python -m pip install --upgrade twine
-    python3 -m twine upload dist/*
-    ```
-    
+After installation, setuptools exposes the console scripts shown above. When running from a source checkout instead of an installed package, use the equivalent module form and prefix commands with `PYTHONPATH=src`:
+
+```bash
+PYTHONPATH=src python -m gradientgrove.markdown_publish --help
+PYTHONPATH=src python -m gradientgrove.markdown_ast --help
+```
+
+## Publishing Markdown documents
+
+`gradientgrove.markdown_publish` converts Markdown files into HTML, Reveal.js slides, LaTeX articles, LaTeX handouts, and Beamer slides.
+
+Basic usage:
+
+```bash
+gradientgrove-publish [path] [options]
+```
+
+The optional `path` can be:
+
+- omitted: treat the current directory as a MkDocs project, merge Markdown pages from `mkdocs.yml` navigation, write all generated outputs in `.publish_cache`, and package them into one `.publish_cache/mkdocs.zip` file;
+- a Markdown file: convert that single file, write all generated outputs in `.publish_cache` beside it, and package them into one ZIP file there;
+- a directory: recursively convert every `*.md` file below that directory, write all generated outputs in that directory's `.publish_cache`, and package them into one ZIP file there.
+
+If no output option is supplied, the script generates the base HTML document by default.
+
+Available output options:
+
+- HTML output
+    - `--base` Numbered base HTML document. 
+    - `--handout`  Numbered HTML handout with `answer` environments omitted. 
+    - `--revealjs`  Numbered Reveal.js slide deck. 
+    - `--html`  All HTML outputs: base, handout, and Reveal.js. 
+
+- LaTeX and PDF have similar options to output latex source and to compile it using with `lualatex`: `--tex`, `--tex_handout` , `--beamer` . 
+
+- `--all` generates all output formats, including HTML, LaTeX article, LaTeX handout, and Beamer outputs. 
+
+- `--version VERSION`, `-v VERSION`  Add the version string to generated output filenames and ZIP names. 
+
+- `--no-mkdocs-page-zip`  In no-argument MkDocs mode, only include the merged MkDocs output in `.publish_cache/mkdocs.zip`. 
+
+- `-h`, `--help`  Show command help and exit. 
+
+Examples:
+
+```bash
+# Merge a MkDocs project from the current directory, generate every output format,
+# and package generated HTML, TeX, and PDF files in .publish_cache/mkdocs.zip.
+gradientgrove-publish --all
+
+# Build and package only the merged MkDocs output.
+gradientgrove-publish --no-mkdocs-page-zip
+
+
+# Generate the default base HTML for a single Markdown file in .publish_cache.
+gradientgrove-publish examples/testfile.md
+
+# Generate all HTML variants for one file.
+gradientgrove-publish examples/testfile.md --html
+
+# Generate a versioned Beamer deck and TeX handout.
+gradientgrove-publish examples/testfile.md --beamer --tex_handout --version week1
+```
+
+Generated HTML, TeX, and PDF outputs are written in `.publish_cache` and packaged together into one ZIP file. LaTeX outputs require `lualatex` on `PATH` if you want the compilation step to produce PDFs.
+
+## Converting LaTeX to Markdown
+
+`gradientgrove-latex-to-markdown` converts a LaTeX file to Markdown using the package's LaTeX parser.
+
+Basic usage:
+
+```bash
+gradientgrove-latex-to-markdown input.tex [output.md]
+```
+
+If `output.md` is omitted, the command writes beside the input file with a `.md` suffix. By default, Beamer `\mode<...>{...}` blocks are normalized before parsing; pass `--no-dump-modes` to skip that preprocessing step.
+
