@@ -1,9 +1,9 @@
 name: Publish python distribution to PyPI and TestPyPI
 on:  # push
   push:
-    branches: 
+    branches:
       - main
-    workflow_dispatch:
+  workflow_dispatch:
 
 
 jobs:
