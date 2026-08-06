@@ -4,13 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradientgrove"
-version = "0.1.4"        #   dev versions with "0.1.4.dev1"
+version = "0.1.5"        #   dev versions with "0.1.5.dev1"
 authors = [
     {name="Stephen Flood", email="stephen.flood@bridgew.edu"}
 ]
 description = "Python scripts to allow the creation of both documents and slideshow from a single Markdown file, or a Mkdocs project.  Create a markdown file with mkdocs-style admonitions, compile to html, revealjs, latex, and beamer outputs."
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "markdown",
+    "mkdocs",
+    "pymdown-extensions",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
