@@ -23,6 +23,7 @@ DEFAULT_EXTENSIONS = [
     "sane_lists",
     "admonition",
     "attr_list",
+    "def_list",
     "pymdownx.arithmatex",
     "pymdownx.details",
     "pymdownx.superfences",
