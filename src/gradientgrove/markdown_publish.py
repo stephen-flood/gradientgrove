@@ -7,6 +7,9 @@ import mimetypes
 import subprocess
 import sys
 
+# import yaml # mkdocs already depends on `pyyaml`
+from mkdocs.utils.meta import get_data
+
 from mkdocs.commands.build import get_files
 from mkdocs.config import load_config
 from mkdocs.structure.nav import get_navigation
@@ -24,6 +27,7 @@ DEFAULT_EXTENSIONS = [
     "admonition",
     "attr_list",
     "def_list",
+    "footnotes",
     "pymdownx.arithmatex",
     "pymdownx.details",
     "pymdownx.superfences",
@@ -91,9 +95,15 @@ def compile_latex(filename):
         # stderr=subprocess.STDOUT,
     )
     if result.returncode != 0:
-        print(f"Compile failed: {filename}")
-        print(result.stdout)
-        return False
+        pdf = filename.with_suffix(".pdf")
+        if not pdf.exists():
+            print(f"Compile failed: {filename}")
+            print(result.stdout)
+            return False
+        else:
+            print(f"Compile succeded with errors: {filename}")
+            print(result.stdout)
+            return True
     return True
 
 def resolve_local_image_paths(tree, markdown_parent):
@@ -209,10 +219,18 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
     version_str = f"-{version}" if version else ""
 
     page_name = filename.stem
-    title = re.sub(r"[_-]+", " ", page_name).title()
+    default_title = re.sub(r"[_-]+", " ", page_name).title()
 
     # text = Path(filename).read_text(encoding="utf-8")
     text = filename.read_text(encoding="utf-8")
+
+    # Extract metadata, separate from body
+    text, meta = get_data(text) 
+    title = meta.get("title", default_title)
+    author = meta.get("author", "Stephen Flood")
+    if isinstance(author, list):
+        author = ", ".join(author)
+    date = meta.get("date", "")
 
     if base:
         tree = build_tree(text, number=True, render_latex_fences=True)
@@ -255,7 +273,9 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
         variant=version_str+"-base"
         output = tree.to_latex(
             title=title,
-            author="Stephen Flood",
+            # author="Stephen Flood",
+            author=author,
+            date=date,
             beamer=False,
         )
 

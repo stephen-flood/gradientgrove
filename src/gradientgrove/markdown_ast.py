@@ -356,6 +356,7 @@ showstringspaces=false,
 }
 \title{$title}
 \author{$author}
+$dateline
 \begin{document}
 \begin{frame}
 \maketitle
@@ -364,6 +365,7 @@ showstringspaces=false,
 
 ARTICLE_HEADER_TEMPLATE = Template(r"""
 \documentclass{article}
+\usepackage[letterpaper, margin=1in]{geometry}
 \usepackage{beamerarticle}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric} 
@@ -428,17 +430,22 @@ showstringspaces=false,
 }
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.6\baselineskip}
+% format tables
 \usepackage{longtable}
 \usepackage{booktabs}
+%\setlength{\tabcolsep}{0.5em} % for the horizontal padding
+\renewcommand{\arraystretch}{1.2}% for the vertical padding
+%
 \newcommand{\tightlist}{}
 \usepackage[most]{tcolorbox}
 \BeforeBeginEnvironment{frame}{\begin{tcolorbox}[enhanced,breakable,boxrule=0.6pt,colback=white,colframe=black,arc=6pt,left=6pt,right=6pt,top=6pt,bottom=6pt,]}
 \AfterEndEnvironment{frame}{\end{tcolorbox}}
 \title{$title}
 \author{$author}
+$dateline
 \begin{document}
 \maketitle
-\tableofcontents
+%\tableofcontents
 """.strip())
 
 # ------------------------------------------------------------
@@ -1039,6 +1046,18 @@ class SyntaxTree:
         )
         # print("length of text after strip comments", len(text))
 
+        # Capture document metadata, store as yaml
+        pandoc_md = subprocess.run(
+            ["pandoc", "-f", "latex", "-t", "markdown", "-s"],
+            input=text,
+            text=True,
+            capture_output=True,
+            check=True,
+        ).stdout
+        yaml = re.match(r"---\n.*?\n---\n", pandoc_md, re.S)
+        yaml = yaml.group(0) if yaml else ""
+
+
         if "\\begin{document}" in text:
             text = text.split("\\begin{document}", 1)[1]
 
@@ -1083,8 +1102,8 @@ class SyntaxTree:
             extensions=extensions,
             extension_configs=extension_configs,
         )
-        tree.markdown_text = markdown_text
-
+        # tree.markdown_text = markdown_text
+        tree.markdown_text = yaml + "\n" + markdown_text # Store yaml metadata
         
 
         return tree
@@ -1597,6 +1616,7 @@ class SyntaxTree:
         *,
         title="Document",
         author="Stephen Flood",
+        date=None,
         beamer=False,
         omit_envs=None,
         transparent_envs=None,
@@ -1617,6 +1637,9 @@ class SyntaxTree:
             }
 
             body = self._render_latex(omit_envs, transparent_envs, progress=progress)
+
+        # Define date parameter
+        dateline = rf"\date{{{date}}}" if date else ""
 
         if beamer:
             template = BEAMER_HEADER_TEMPLATE

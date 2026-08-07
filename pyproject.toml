@@ -32,5 +32,4 @@ Issues = "https://gradientgrove.com"
 
 [project.scripts]
 gradientgrove-publish = "gradientgrove.markdown_publish:main"
-gradientgrove-pdf-review = "gradientgrove.pdf_review_tool:main"
 gradientgrove-latex-to-markdown = "gradientgrove.markdown_ast:latex_to_markdown_main"
