@@ -1,4 +1,4 @@
-from gradientgrove.markdown_ast import SyntaxTree
+from gradientgrove.markdown_ast import SyntaxTree, latex_to_markdown_main
 from gradientgrove import latex_fence
 
 import argparse
@@ -235,7 +235,8 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
     if base:
         tree = build_tree(text, number=True, render_latex_fences=True)
         embed_local_images(tree, filename.parent)
-        variant=version_str+"-base"
+        # variant=version_str+"-base"
+        variant = version_str
 
         output = tree.to_html(title=title)
         output_file = output_directory / f"{page_name}{variant}.html"
@@ -270,7 +271,8 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
     if tex:
         tree = build_tree(text, number=False, render_latex_fences=False)
         resolve_local_image_paths(tree, filename.parent)
-        variant=version_str+"-base"
+        # variant=version_str+"-base"
+        variant = version_str
         output = tree.to_latex(
             title=title,
             # author="Stephen Flood",
@@ -362,6 +364,7 @@ def main():
     parser.add_argument("--revealjs", action="store_true", help="Generate revealjs slides")
     parser.add_argument("--html", action="store_true", help="Generate *all* HTML documents")
     parser.add_argument("--tex", action="store_true", help="Generate TeX base document")
+    parser.add_argument("--pdf", action="store_true", help="Generate TeX base document")
     parser.add_argument("--tex_handout", action="store_true", help="Generate TeX handout")
     parser.add_argument("--beamer", action="store_true", help="Generate Beamer slides")
     parser.add_argument("--all", action="store_true", help="Generate all outputs")
@@ -391,9 +394,11 @@ def main():
 
     options = {
         "base" : args.base or args.all or args.html,
-        "handout" : args.all or args.html or args.handout,
-        "revealjs" : args.all or args.html or args.revealjs,    
-        "tex" : args.all or args.tex,
+        # "handout" : args.all or args.html or args.handout,
+        # "revealjs" : args.all or args.html or args.revealjs, 
+        "handout" : args.all or args.handout,
+        "revealjs" : args.all or args.revealjs,   
+        "tex" : args.all or args.tex or args.pdf,
         "tex_handout" : args.all or args.tex_handout ,
         "beamer" : args.all or args.beamer ,
         "version" : args.version,
@@ -411,7 +416,14 @@ def main():
     elif path.is_file():
         output_directory = path.parent / ".publish_cache"
         output_directory.mkdir(parents=True, exist_ok=True)
+
         print(f"Got a file: {path}")
+
+        if path.suffix.lower() == ".tex":
+            markdown_path = output_directory / path.with_suffix(".md").name
+            latex_to_markdown_main([str(path), str(markdown_path)])
+            path = markdown_path
+
         convert_file(
             path,
             output_directory,
