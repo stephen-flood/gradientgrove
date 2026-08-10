@@ -69,6 +69,9 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
                              
   .reveal .slides section {
     text-align: left;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: auto;
   }
 
   .reveal .slides section h1,
@@ -342,6 +345,7 @@ showstringspaces=false,
 \setlength{\parindent}{0pt}
 \usepackage{longtable}
 \usepackage{booktabs}
+\newcounter{none}
 \newcommand{\tightlist}{}
 \usetheme{Madrid}
 \usepackage{multicol}
@@ -365,8 +369,8 @@ $dateline
 
 ARTICLE_HEADER_TEMPLATE = Template(r"""
 \documentclass{article}
-\usepackage[letterpaper, margin=1in]{geometry}
 \usepackage{beamerarticle}
+\usepackage[margin=1in,top=0.5in,bottom=0.5in, paperwidth=8.5in, paperheight=11in]{geometry}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric} 
 \usetikzlibrary{shadings}
@@ -428,13 +432,15 @@ breaklines=true,
 keepspaces=true,
 showstringspaces=false,
 }
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{0.6\baselineskip}
+%\setlength{\parindent}{0pt}
+%\setlength{\parskip}{0.6\baselineskip}
+\usepackage{parskip}
 % format tables
 \usepackage{longtable}
 \usepackage{booktabs}
 %\setlength{\tabcolsep}{0.5em} % for the horizontal padding
 \renewcommand{\arraystretch}{1.2}% for the vertical padding
+\newcounter{none}
 %
 \newcommand{\tightlist}{}
 \usepackage[most]{tcolorbox}
@@ -921,6 +927,13 @@ class SyntaxTree:
             line_index += 1
 
         protected_text = "\n".join(protected_lines)
+
+        # Convert \newpage to !!! newpage
+        protected_text = re.sub(
+            r"\\newpage\b",
+            "\n\n!!! newpage\n\n",
+            protected_text,
+        )
 
         # Strip out latex commands with on markdown analog
         strip_latex_commands = ["alert", "only", "onslide"]

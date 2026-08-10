@@ -112,7 +112,7 @@ def _compile_to_svg(latex_body: str) -> bytes:
 
         p = subprocess.run(
             # ["pdf2svg", str(td / "x.pdf"), str(td / "x.svg")],
-            ["dvisvgm", "--bbox=min", "--pdf", str(td / "x.pdf"), "-o", str(td / "x.svg")],
+            ["dvisvgm", "--no-fonts", "--bbox=min", "--pdf", str(td / "x.pdf"), "-o", str(td / "x.svg")],
             cwd=td,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,

@@ -6,6 +6,7 @@ import base64
 import mimetypes
 import subprocess
 import sys
+import shutil 
 
 # import yaml # mkdocs already depends on `pyyaml`
 from mkdocs.utils.meta import get_data
@@ -189,8 +190,15 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
     nav = get_navigation(files, config)
     pages = [page for page in nav.pages if page.file.src_uri.endswith(".md")]
 
+    site_title = config['site_name']
+    site_title = re.sub(r'[^A-Za-z0-9 -_]', '', site_title)
+    site_title = re.sub(r'[ -]+', '_', site_title)
+    site_title_md = site_title + ".md"
+    site_title_zip = site_title + ".zip"
+
     generated = []
-    merged_file = output_directory / "mkdocs-merged.md"
+    # merged_file = output_directory / "mkdocs-merged.md"
+    merged_file = output_directory / site_title_md
     try:
         merged = "\n\n".join(
             Path(page.file.abs_src_path).read_text(encoding="utf-8")
@@ -209,7 +217,8 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
             generated.extend(convert_file(page_source, page_output_directory, **options, package_zip=False))
 
     version = options.get("version", "")
-    zip_name = f"mkdocs-{version}.zip" if version else "mkdocs.zip"
+    # zip_name = f"mkdocs-{version}.zip" if version else "mkdocs.zip"
+    zip_name = f"{site_title_zip}-{version}.zip" if version else site_title_zip
     package_outputs(output_directory / zip_name, generated, base_directory=output_directory)
     return generated
 
@@ -285,7 +294,9 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
         output_file.write_text(output, encoding="utf-8")
 
         tex_generated.append(output_file)
-        generated.append(output_file)
+        
+        # Do/don't include tex in zip 
+        # generated.append(output_file)
 
     if tex_handout:
         tree = build_tree(text, number=False, omit_envs = ["answer"], render_latex_fences=False)
@@ -301,7 +312,9 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
         output_file.write_text(output, encoding="utf-8")
         # output = output_latex_article(filename,output_directory,variant=version_str+"-base")
         tex_generated.append(output_file)
-        generated.append(output_file)
+
+        # Do/don't include tex in zip 
+        # generated.append(output_file)
 
     if beamer:
         tree = build_tree(text, number=False, render_latex_fences=False)
@@ -317,7 +330,9 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
         output_file.write_text(output, encoding="utf-8")
         # output = output_latex_article(filename,output_directory,variant=version_str+"-base")
         tex_generated.append(output_file)
-        generated.append(output_file)
+
+        # Do/don't include tex in zip 
+        # generated.append(output_file)
 
     # Compile LaTeX output
     for output in tex_generated:
@@ -414,9 +429,10 @@ def main():
         convert_mkdocs_directory(path, output_directory, page_zip=args.mkdocs_page_zip, **options)
 
     elif path.is_file():
+        tex_directory = path.parent
         output_directory = path.parent / ".publish_cache"
         output_directory.mkdir(parents=True, exist_ok=True)
-
+        
         print(f"Got a file: {path}")
 
         if path.suffix.lower() == ".tex":
@@ -424,11 +440,14 @@ def main():
             latex_to_markdown_main([str(path), str(markdown_path)])
             path = markdown_path
 
-        convert_file(
+        generated = convert_file(
             path,
             output_directory,
             **options
         )
+        # copy any generated PDFs back into the tex file directory. 
+        for pdf in (p for p in generated if p.suffix == ".pdf"):
+            shutil.copy2(pdf, tex_directory)
 
     elif path.is_dir():
         output_directory = path / ".publish_cache"
