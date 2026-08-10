@@ -205,7 +205,13 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
             for page in pages
         )
         merged_file.write_text(merged, encoding="utf-8")
-        generated.extend(convert_file(merged_file, output_directory, **options, package_zip=False))
+        generated.extend(
+            convert_file(
+                merged_file, output_directory, 
+                    image_base=Path(config.docs_dir),
+                    **options, package_zip=False,
+                )
+            )
     finally:
         merged_file.unlink(missing_ok=True)
 
@@ -214,7 +220,12 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
             page_source = Path(page.file.abs_src_path)
             page_output_directory = output_directory / Path(page.file.src_uri).with_suffix("").parent
             page_output_directory.mkdir(parents=True, exist_ok=True)
-            generated.extend(convert_file(page_source, page_output_directory, **options, package_zip=False))
+            generated.extend(
+                convert_file(page_source, page_output_directory, 
+                        image_base=Path(config.docs_dir),
+                        **options, package_zip=False
+                    )
+                )
 
     version = options.get("version", "")
     # zip_name = f"mkdocs-{version}.zip" if version else "mkdocs.zip"
@@ -222,10 +233,16 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
     package_outputs(output_directory / zip_name, generated, base_directory=output_directory)
     return generated
 
-def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=False,beamer=False, handout=False, tex_handout=False, version="", package_zip=True):
+def convert_file(filename, output_directory, *, 
+                 base=False, tex=False, revealjs=False,beamer=False, handout=False, tex_handout=False, 
+                 version="", package_zip=True,
+                 image_base=None,
+    ):
     tex_generated = []
     generated = []
     version_str = f"-{version}" if version else ""
+
+    image_base = image_base or filename.parent
 
     page_name = filename.stem
     default_title = re.sub(r"[_-]+", " ", page_name).title()
@@ -243,7 +260,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if base:
         tree = build_tree(text, number=True, render_latex_fences=True)
-        embed_local_images(tree, filename.parent)
+        embed_local_images(tree, image_base)
         # variant=version_str+"-base"
         variant = version_str
 
@@ -255,7 +272,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if handout:
         tree = build_tree(text, omit_envs=["answer"], number=True, render_latex_fences=True)
-        embed_local_images(tree, filename.parent)
+        embed_local_images(tree, image_base)
         
         variant=version_str+"-handout"
 
@@ -267,7 +284,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if revealjs:
         tree = build_tree(text, number=True, render_latex_fences=True)
-        embed_local_images(tree, filename.parent)
+        embed_local_images(tree, image_base)
         variant=version_str+"-revealjs"
 
         output = tree.to_revealjs(title=title)
@@ -279,7 +296,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if tex:
         tree = build_tree(text, number=False, render_latex_fences=False)
-        resolve_local_image_paths(tree, filename.parent)
+        resolve_local_image_paths(tree,  image_base)
         # variant=version_str+"-base"
         variant = version_str
         output = tree.to_latex(
@@ -300,7 +317,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if tex_handout:
         tree = build_tree(text, number=False, omit_envs = ["answer"], render_latex_fences=False)
-        resolve_local_image_paths(tree, filename.parent)
+        resolve_local_image_paths(tree, image_base)
         variant=version_str+"-handout"
         output = tree.to_latex(
             title=title,
@@ -318,7 +335,7 @@ def convert_file(filename, output_directory, *, base=False, tex=False, revealjs=
 
     if beamer:
         tree = build_tree(text, number=False, render_latex_fences=False)
-        resolve_local_image_paths(tree, filename.parent)
+        resolve_local_image_paths(tree,  image_base)
         variant=version_str+"-slides"
         output = tree.to_latex(
             title=title,
@@ -387,7 +404,7 @@ def main():
         "--mkdocs-page-zip",
         dest="mkdocs_page_zip",
         action="store_true",
-        default=True,
+        default=False,
         help="In MkDocs mode, include each source page's outputs in the single .publish_cache/mkdocs.zip package (default)",
     )
     parser.add_argument(
