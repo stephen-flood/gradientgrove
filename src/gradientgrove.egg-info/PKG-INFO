@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: gradientgrove
-Version: 0.1.5
-Summary: Python scripts to allow the creation of both documents and slideshow from a single Markdown file, or a Mkdocs project.  Create a markdown file with mkdocs-style admonitions, compile to html, revealjs, latex, and beamer outputs.
+Version: 0.1.5.dev1
+Summary: Python scripts for teaching and scholarship, under development.  Currently contains scripts that allow the creation of both documents and slideshow from a single Markdown file, or a Mkdocs project.  Create a markdown file with mkdocs-style admonitions, compile to html, revealjs, latex, and beamer outputs.
 Author-email: Stephen Flood <stephen.flood@bridgew.edu>
 License-Expression: GPL-3.0-only
 Project-URL: Homepage, https://gradientgrove.com

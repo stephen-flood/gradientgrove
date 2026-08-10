@@ -131,6 +131,10 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             math = raw(node).strip("\n")
             return f"\n\n{math}\n\n" if key == "div" else math
 
+        if key == "img":  # Render image 
+            src = node.attrs.get("src", "")
+            return rf"\includegraphics[width=\linewidth]{{{src}}}"
+
         if key not in LATEX_RULES:
             if node.kind in {"admonition", "details"}:
                 # escaped_title = "".join(

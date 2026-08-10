@@ -121,7 +121,8 @@ def resolve_local_image_paths(tree, markdown_parent):
 
         resolved = (markdown_parent / src).resolve()
         if resolved.exists():
-            node.attrs["src"] = str(resolved)
+            # node.attrs["src"] = str(resolved)
+            node.attrs["src"] = resolved.as_posix()
 
 
 def embed_local_images(tree, markdown_parent):
