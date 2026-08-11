@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradientgrove"
-version = "0.1.5.dev1"         #   dev versions with "0.1.5.dev1"
+version = "0.1.5"         #   dev versions with "0.1.5.dev1"
 authors = [
     {name="Stephen Flood", email="stephen.flood@bridgew.edu"}
 ]
