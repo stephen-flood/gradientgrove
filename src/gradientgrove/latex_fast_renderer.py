@@ -123,6 +123,21 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.kind == "document":
             return "".join(render(child) for child in node.children)
 
+        if node.name == "page":
+            return body(node) + "\n\\newpage\n"
+
+        if node.name == "newpage":
+            return "\n\\newpage\n"
+
+        if node.name == "vfill":
+            return "\n\\vspace{\\stretch{1}}\n"
+
+        if node.name == "vspace":
+            amount = (node.title or "").strip()
+            if amount.lower() in {"", "vspace"}:
+                amount = "1in"
+            return f"\n\\vspace{{{amount}}}\n"
+
         key = node.name if node.kind in {"admonition", "details"} else (node.tag or node.name)
 
         # Math produced by pymdownx.arithmatex is already LaTeX-like content.

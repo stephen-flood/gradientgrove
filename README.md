@@ -18,6 +18,80 @@ PYTHONPATH=src python -m gradientgrove.markdown_publish --help
 PYTHONPATH=src python -m gradientgrove.markdown_ast --help
 ```
 
+## Markdown Syntax
+
+- Standard Mkdocs/python-markdown syntax
+- Several additional fences, with behavior dependent on output format
+    - Contents of `frame` become slides in revealjs/beamer output.  Contents of `pause` are revealed when advancing. 
+    - A page break is inserted before and after the contents of `page`
+    - A `newpage` environment with no contents inserts a pagebreak. 
+- You cannot put (sub)*section divisions inside a `frame`
+
+| environment | article (html/pdf) | slides (revealjs/beamer) | 
+| ------- | ------ | ------ | 
+| `frame`, `pause` | ignored | yes | 
+| `newpage`, `page`, `vspace`, `vfill` | yes | ignored | 
+| `exercise`, `answer` | yes | yes | 
+| `theorem`, `definition` | yes | yes | 
+
+```
+---
+title : "My Document"
+author: "Firstname Lastname"
+---
+
+# Background
+
+!!! note 
+    Standard MkDocs/Python Markdown admonitions work
+
+??? info
+    Collapsable admonitions work too
+
+# Slideshows
+
+!!! frame "Frame Title"
+
+    Frame contents go here
+
+    !!! pause
+        Displayed when advanced
+    
+!!! exercise
+    You can put exercises between frames
+
+??? answer
+    And you can put answers too. 
+
+    Answers are **excluded** from handout mode
+
+!!! frame
+    You can put the next frame here
+
+!!! page
+    !!! exercise 
+        You can also make a worksheet with spaces
+    
+    !!! vfill
+
+    !!! exercise
+        Another exercise
+    
+    !!! vfill
+
+# Mathematics environments
+
+!!! definition 
+    Definitions work
+
+!!! theorem
+    Theorems too
+
+Currently supported environments are hardcoded into the template, particularly for latex output.
+Eventually there should be a more dynamic solution. 
+```
+
+
 ## Publishing Markdown documents
 
 `gradientgrove.markdown_publish` converts Markdown files into HTML, Reveal.js slides, LaTeX articles, LaTeX handouts, and Beamer slides.
