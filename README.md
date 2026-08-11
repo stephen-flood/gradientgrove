@@ -37,7 +37,8 @@ PYTHONPATH=src python -m gradientgrove.markdown_ast --help
 ```
 ---
 title : "My Document"
-author: "Firstname Lastname"
+author: 
+- Firstname Lastname
 ---
 
 # Background

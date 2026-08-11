@@ -9,6 +9,8 @@ from markdown.treeprocessors import Treeprocessor
 import subprocess
 import html
 
+import requests # To fetch mathjax source
+
 from gradientgrove.latex_fast_renderer import render_latex_fast
 
 from pathlib import Path 
@@ -47,6 +49,11 @@ DEFAULT_LATEX_ENV_MAP = {
 
  }
 
+MATHJAX_URL = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"
+
+REVEAL_VERSION = "6.0.1"
+REVEAL_BASE = f"https://cdn.jsdelivr.net/npm/reveal.js@{REVEAL_VERSION}/dist"
+
 REVEALJS_TEMPLATE = Template("""<!doctype html>
 <html lang="en">
 <head>
@@ -54,17 +61,28 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>$title</title>
 
-  <link rel="stylesheet" href="$reveal_js_path/reveal.css">
-  <link rel="stylesheet" href="$reveal_js_path/theme/$theme.css">
+  <!--link rel="stylesheet" href="$reveal_js_path/reveal.css">
+  <link rel="stylesheet" href="$reveal_js_path/theme/$theme.css"-->
+  <style> $reveal_js_css_source </style>
+  <style> $reveal_js_theme_source </style>
+  <script> $reveal_js_script_source </script>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+
+  <!--link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/style.css"-->
 
-  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+  <script>$mathjax_source</script>
+
+  
 
 <style>
 
+  .reveal {
+    width: 100%;
+    height: 700px;
+  }
                              
                              
   .reveal .slides section {
@@ -183,14 +201,15 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
     </div>
   </div>
 
-  <script src="$reveal_js_path/reveal.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/menu.js"></script>
+  <!--script src="$reveal_js_path/reveal.js"></script-->
+  <!--script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/menu.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/plugin.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/plugin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/plugin.js"></script-->
 
   <script>
     Reveal.initialize({
+      embed: true,
       hash: true,
       controls: true,
       controlsTutorial: true,
@@ -217,6 +236,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
       width: 1000,
       height: 700,
                                 
+      /*
         menu: {
         side: "left",
         width: "normal",
@@ -227,6 +247,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
         keyboard: true
         },
 
+      
       customcontrols: {
         controls: [
           {
@@ -245,6 +266,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
       chalkboard: {},
 
       plugins: [ RevealMenu, RevealCustomControls, RevealChalkboard ]
+      */
     });
   </script>
 </body>
@@ -257,12 +279,11 @@ HTML_HEADER_TEMPLATE = Template(r"""<!doctype html>
 <head>
     <meta charset="utf-8">
     <title>$title</title>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script>
+        $mathjax_source
+    </script>
     <style>
-    $base_css_text
-    </style>
-    <style>
-    $bootstrap_min_css_text
+        $gradientgrove_css
     </style>
     <style><!-- https://github.com/sindresorhus/github-markdown-css -->
     </style> 
@@ -1340,13 +1361,17 @@ class SyntaxTree:
 
             from pathlib import Path
             SCRIPT_DIR = Path(__file__).resolve().parent
-            # with (SCRIPT_DIR / "base.css").open() as f:
-            #     base_css_text = f.read()
-            # with (SCRIPT_DIR / "bootstrap.min.css").open() as f:
-            #     bootstrap_min_css_text = f.read()
+
             with (SCRIPT_DIR / "gradientgrove.css").open() as f:
-                base_css_text = f.read()
-                bootstrap_min_css_text = f.read()
+                gradientgrove_css = f.read()
+
+            # Download mathjax script to embed into html
+            try:
+                response = requests.get(MATHJAX_URL)
+                response.raise_for_status()
+                mathjax_source = response.text
+            except:
+                print("ERROR: Unable to download mathjax script")
 
             return HTML_HEADER_TEMPLATE.safe_substitute(locals())
 
@@ -1457,8 +1482,16 @@ class SyntaxTree:
                 )
                 body = "".join(child._render_reveal_content(transparent_envs) for child in node.children)
                 slides.append(f"<section>\n{slide_title}{body}\n</section>")
-                
+
+        # Collect slide contents                
         slides_html = "\n".join(slides)
+
+        # Download mathjax script to embed into html
+        mathjax_source = requests.get(MATHJAX_URL).text
+        reveal_js_css_source = requests.get(f"{REVEAL_BASE}/reveal.css").text
+        reveal_js_theme_source  = requests.get(f"{REVEAL_BASE}/theme/{theme}.css").text
+        reveal_js_script_source = requests.get(f"{REVEAL_BASE}/reveal.js").text
+
         return REVEALJS_TEMPLATE.safe_substitute(locals())
     
     def mark_call_pandoc(self):
