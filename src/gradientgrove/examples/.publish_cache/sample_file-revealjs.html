@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Document</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/serif.css">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/style.css">
+
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+
+<style>
+
+                             
+                             
+  .reveal .slides section {
+    text-align: left;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+
+  .reveal .slides section h1,
+  .reveal .slides section h2,
+  .reveal .slides section h3,
+  .reveal .slides section h4,
+  .reveal .slides section p,
+  .reveal .slides section ul,
+  .reveal .slides section ol,
+  .reveal .slides section blockquote {
+    text-align: left;
+  }
+
+    .reveal { 
+        font-size: 18pt; 
+    }
+
+    .reveal pre code { 
+        font-size: 15.75pt;
+        line-height: 1.35;
+        max-height: none;
+        padding: 0.4em 0.4em;
+    }
+
+    .reveal h1 { font-size: 33pt; }
+    .reveal h2 { font-size: 26.5pt; }
+    .reveal h3 { font-size: 21.5pt; }
+    .reveal h4 { font-size: 19pt; }
+
+    .reveal .title-slide h1 { font-size: 36.25pt; }
+    .reveal .section-slide h2 { font-size: 29.75pt; }
+
+    /* scale images to match rescaled font size */
+    .reveal img.latex-svg {
+        zoom: 1.8;
+    }
+/* format frame titles like h2 without making them h2 */
+    .reveal .frame-title {
+      font-size: 26.5pt;
+      font-weight: bold;
+      margin: 0 0 0.4em 0;
+      line-height: 1.2;
+    }
+                             
+/* Prevent spaces from building up between containers */
+.reveal section > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.reveal section > * + * {
+  margin-top: 0.4em;
+}
+
+.reveal p {
+  line-height: 1.25;
+}
+                                                          
+</style>
+                            
+                            
+  <style>
+                                                          
+    .reveal .title-slide,
+    .reveal .section-slide {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: 100%;
+    }
+
+    .reveal .theorem,
+    .reveal .example,
+    .reveal .answer,
+    .reveal .note {
+      margin: 1rem 0;
+      padding: 0.75rem 1rem;
+      border-left: 4px solid #888;
+      background: rgba(127,127,127,0.08);
+      text-align: left;
+      border-radius: 0.25rem;
+    }
+
+    .reveal .theorem-title,
+    .reveal .example-title,
+    .reveal .answer-title,
+    .reveal .note-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .reveal pre {
+      width: 100%;
+    }
+
+    .reveal img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section class="title-slide" data-menu-title="1 Background"><h1>1 Background</h1></section>
+<section class="title-slide" data-menu-title="2 Slideshows"><h1>2 Slideshows</h1></section>
+<section>
+<div class="frame-title">Frame Title</div>
+<p>Frame contents go here</p><div class="fragment">
+<p>Displayed when advanced</p>
+</div>
+</section>
+<section>
+<div class="frame-title">Frame</div>
+<p>You can put the next frame here</p>
+</section>
+<section class="title-slide" data-menu-title="3 Mathematics environments"><h1>3 Mathematics environments</h1></section>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/menu.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/plugin.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/plugin.js"></script>
+
+  <script>
+    Reveal.initialize({
+      hash: true,
+      controls: true,
+      controlsTutorial: true,
+      controlsLayout: "bottom-right",
+      controlsBackArrows: "faded",
+      progress: true,
+      slideNumber: true,
+      center: true,
+      margin: 0,
+
+                             
+      transition: 'fade', // none/fade/slide/convex/concave/zoom
+      transitionSpeed: 'fast', // default/fast/slow
+                                                                                       
+      // Prevent autoscaling to enforce default frame size
+      minScale: 1,
+      maxScale: 1,
+
+      // The "normal" size of the presentation, aspect ratio will
+      // be preserved when the presentation is scaled to fit different
+      // resolutions. Can be specified using percentage units.
+      //width: 1280,
+      //height: 720,
+      width: 1000,
+      height: 700,
+                                
+        menu: {
+        side: "left",
+        width: "normal",
+        numbers: true,
+        titleSelector: "",
+        hideMissingTitles: true,
+        openButton: true,
+        keyboard: true
+        },
+
+      customcontrols: {
+        controls: [
+          {
+            icon: '<i class="fa fa-pen-square"></i>',
+            title: 'Toggle chalkboard (B)',
+            action: 'RevealChalkboard.toggleChalkboard();'
+          },
+          {
+            icon: '<i class="fa fa-pen"></i>',
+            title: 'Toggle notes canvas (C)',
+            action: 'RevealChalkboard.toggleNotesCanvas();'
+          }
+        ]
+      },
+
+      chalkboard: {},
+
+      plugins: [ RevealMenu, RevealCustomControls, RevealChalkboard ]
+    });
+  </script>
+</body>
+</html>

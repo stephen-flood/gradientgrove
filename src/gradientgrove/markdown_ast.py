@@ -266,15 +266,6 @@ HTML_HEADER_TEMPLATE = Template(r"""<!doctype html>
     </style>
     <style><!-- https://github.com/sindresorhus/github-markdown-css -->
     </style> 
-    <style>
-    /* Optional: center like GitHub / VS Code preview */
-    .markdown-body {
-    box-sizing: border-box;
-    min-width: 200px;
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 32px;
-    }</style>
 </head>
 <body class="markdown-body">
     $html_body
@@ -1129,9 +1120,10 @@ class SyntaxTree:
         heading_names = {"h1", "h2", "h3", "h4", "h5", "h6"}
 
         if self.name in heading_names and not in_document_root:
-            raise ValueError(
-                f"Heading {self.name!r} must be top-level in the document"
-            )
+            # raise ValueError(
+            #     f"Heading {self.name!r} must be top-level in the document"
+            # )
+            print(f"Warning: Heading {self.name!r} with title {self.text!r} must be top-level in the document")
 
         if self.name == "frame":
             for child in self.children:

@@ -398,7 +398,7 @@ def main():
     parser.add_argument("--html", action="store_true", help="Generate *all* HTML documents")
     parser.add_argument("--tex", action="store_true", help="Generate TeX base document")
     parser.add_argument("--pdf", action="store_true", help="Generate TeX base document")
-    parser.add_argument("--tex_handout", action="store_true", help="Generate TeX handout")
+    parser.add_argument("--pdf-handout", action="store_true", help="Generate TeX handout")
     parser.add_argument("--beamer", action="store_true", help="Generate Beamer slides")
     parser.add_argument("--all", action="store_true", help="Generate all outputs")
     parser.add_argument(
@@ -432,7 +432,7 @@ def main():
         "handout" : args.all or args.handout,
         "revealjs" : args.all or args.revealjs,   
         "tex" : args.all or args.tex or args.pdf,
-        "tex_handout" : args.all or args.tex_handout ,
+        "tex_handout" : args.all or args.pdf_handout ,
         "beamer" : args.all or args.beamer ,
         "version" : args.version,
     }

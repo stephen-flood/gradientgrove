@@ -124,7 +124,7 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             return "".join(render(child) for child in node.children)
 
         if node.name == "page":
-            return body(node) + "\n\\newpage\n"
+            return  "\n\\newpage\n" + body(node) + "\n\\newpage\n"
 
         if node.name == "newpage":
             return "\n\\newpage\n"

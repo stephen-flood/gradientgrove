@@ -1,4 +1,11 @@
-/*
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>My Document</title>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <style>
+    /*
  * GradientGrove document stylesheet
  *
  * Original stylesheet for GradientGrove-generated standalone HTML.
@@ -328,3 +335,70 @@ details > :last-child {
         text-decoration: underline;
     }
 }
+
+    </style>
+    <style>
+    
+    </style>
+    <style><!-- https://github.com/sindresorhus/github-markdown-css -->
+    </style> 
+</head>
+<body class="markdown-body">
+    <h1 id="background">1 Background</h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p><p>Standard MkDocs/Python Markdown admonitions work</p>
+</div>
+<details class="info">
+<summary>Info</summary><p>Collapsable admonitions work too</p>
+</details>
+<p>You can generate embed graphics using latex (assumed to be tikz), and provide an alt-text for accessibility. </p>
+<p><img class="latex-svg" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz4NCjwhLS0gVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgZHZpc3ZnbSAzLjQuMyAtLT4NCjxzdmcgdmVyc2lvbj0nMS4xJyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHhtbG5zOnhsaW5rPSdodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rJyB3aWR0aD0nNTkuMDg0cHQnIGhlaWdodD0nNTkuMDg0cHQnIHZpZXdCb3g9JzAgLTU5LjA4NCA1OS4wODQgNTkuMDg0Jz4NCjxnIGlkPSdwYWdlMSc+DQo8ZyB0cmFuc2Zvcm09J21hdHJpeCgxIDAgMCAtMSAwIDApJz4NCjxwYXRoIGQ9J001Ny44OTA2IDI5LjU0Mjk2OUM1Ny44OTA2IDQ1LjE5OTIgNDUuMTk5MiA1Ny44OTA2IDI5LjU0Mjk2OSA1Ny44OTA2QzEzLjg4NjcgNTcuODkwNiAxLjE5NTMgNDUuMTk5MiAxLjE5NTMgMjkuNTQyOTY5QzEuMTk1MyAxMy44ODY3IDEzLjg4NjcgMS4xOTUzIDI5LjU0Mjk2OSAxLjE5NTNDNDUuMTk5MiAxLjE5NTMgNTcuODkwNiAxMy44ODY3IDU3Ljg5MDYgMjkuNTQyOTY5Wicgc3Ryb2tlPScjMDAwJyBmaWxsPSdub25lJyBzdHJva2Utd2lkdGg9Jy4zOTg1JyBzdHJva2UtbWl0ZXJsaW1pdD0nMTAnLz4NCjwvZz4NCjwvZz4NCjwvc3ZnPg==" alt="Drawing of a circle"></p>
+<h1 id="slideshows">2 Slideshows</h1>
+<div class="admonition frame">
+<p class="admonition-title">Frame Title</p><p>Frame contents go here</p>
+<div class="admonition pause">
+<p class="admonition-title">Pause</p><p>Displayed when advanced</p>
+</div>
+</div>
+<div class="admonition exercise">
+<p class="admonition-title">Exercise 1</p><p>You can put exercises between frames</p>
+</div>
+<details class="answer">
+<summary>Answer</summary><p>And you can put answers too. </p>
+<p>Answers are <strong>excluded</strong> from handout mode</p>
+</details>
+<div class="admonition frame">
+<p class="admonition-title">Frame</p><p>You can put the next frame here</p>
+</div>
+<section class="gg-page"><div class="gg-page-content"><h2 id="sample-worksheet">2.1 Sample Worksheet</h2>
+<p>You can also make a worksheet with spaces</p>
+<div class="admonition exercise">
+<p class="admonition-title">Exercise 2</p><p>A first problem</p>
+</div>
+<details class="answer">
+<summary>Answer</summary><p>Answer to first question</p>
+</details>
+<div class="gg-vfill"></div>
+<div class="admonition exercise">
+<p class="admonition-title">Exercise 3</p><p>Another exercise</p>
+</div>
+<details class="answer">
+<summary>Answer</summary><p>Answer to second question</p>
+</details>
+<div class="gg-vfill"></div>
+<div class="gg-newpage"></div>
+<div class="admonition exercise">
+<p class="admonition-title">Exercise 4</p><p>Exercise on next page</p>
+</div>
+</div></section>
+<h1 id="mathematics-environments">3 Mathematics environments</h1>
+<div class="admonition definition">
+<p class="admonition-title">Definition</p><p>Definitions work</p>
+</div>
+<div class="admonition theorem">
+<p class="admonition-title">Theorem</p><p>Theorems too</p>
+</div>
+<p>Currently supported environments are hardcoded into the template, particularly for latex output.
+Eventually there should be a more dynamic solution. </p>
+</body>
+</html>

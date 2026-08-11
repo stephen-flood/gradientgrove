@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: gradientgrove
-Version: 0.1.5.dev1
+Version: 0.1.6.dev1
 Summary: Python scripts for teaching and scholarship, under development.  Currently contains scripts that allow the creation of both documents and slideshow from a single Markdown file, or a Mkdocs project.  Create a markdown file with mkdocs-style admonitions, compile to html, revealjs, latex, and beamer outputs.
 Author-email: Stephen Flood <stephen.flood@bridgew.edu>
 License-Expression: GPL-3.0-only
@@ -32,9 +32,83 @@ gradientgrove-latex-to-markdown --help
 After installation, setuptools exposes the console scripts shown above. When running from a source checkout instead of an installed package, use the equivalent module form and prefix commands with `PYTHONPATH=src`:
 
 ```bash
-PYTHONPATH=src python -m gradientgrove.markdown_publish --help
+PYTHONPATH=src python -m gradientgrove.publish --help
 PYTHONPATH=src python -m gradientgrove.markdown_ast --help
 ```
+
+## Markdown Syntax
+
+- Standard Mkdocs/python-markdown syntax
+- Several additional fences, with behavior dependent on output format
+    - Contents of `frame` become slides in revealjs/beamer output.  Contents of `pause` are revealed when advancing. 
+    - A page break is inserted before and after the contents of `page`
+    - A `newpage` environment with no contents inserts a pagebreak. 
+- You cannot put (sub)*section divisions inside a `frame`
+
+| environment | article (html/pdf) | slides (revealjs/beamer) | 
+| ------- | ------ | ------ | 
+| `frame`, `pause` | ignored | yes | 
+| `newpage`, `page`, `vspace`, `vfill` | yes | ignored | 
+| `exercise`, `answer` | yes | yes | 
+| `theorem`, `definition` | yes | yes | 
+
+```
+---
+title : "My Document"
+author: "Firstname Lastname"
+---
+
+# Background
+
+!!! note 
+    Standard MkDocs/Python Markdown admonitions work
+
+??? info
+    Collapsable admonitions work too
+
+# Slideshows
+
+!!! frame "Frame Title"
+
+    Frame contents go here
+
+    !!! pause
+        Displayed when advanced
+    
+!!! exercise
+    You can put exercises between frames
+
+??? answer
+    And you can put answers too. 
+
+    Answers are **excluded** from handout mode
+
+!!! frame
+    You can put the next frame here
+
+!!! page
+    !!! exercise 
+        You can also make a worksheet with spaces
+    
+    !!! vfill
+
+    !!! exercise
+        Another exercise
+    
+    !!! vfill
+
+# Mathematics environments
+
+!!! definition 
+    Definitions work
+
+!!! theorem
+    Theorems too
+
+Currently supported environments are hardcoded into the template, particularly for latex output.
+Eventually there should be a more dynamic solution. 
+```
+
 
 ## Publishing Markdown documents
 
