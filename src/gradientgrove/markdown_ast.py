@@ -61,138 +61,138 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>$title</title>
 
-  <!--link rel="stylesheet" href="$reveal_js_path/reveal.css">
-  <link rel="stylesheet" href="$reveal_js_path/theme/$theme.css"-->
+  <!-- Essential scripts packaged for Blackboard -->
   <style> $reveal_js_css_source </style>
-  <style> $reveal_js_theme_source </style>
   <script> $reveal_js_script_source </script>
+  <style> $reveal_js_theme_source </style>
+  <script>  $mathjax_source </script>
 
+  <!-- Nice to have scripts loaded at runtime -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/menu.js"></script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 
-
-  <!--link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/style.css"-->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/plugin.js"></script>
 
-  <script>$mathjax_source</script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/plugin.js"></script>
 
   
-
 <style>
-
-  .reveal {
+.reveal {
     width: 100%;
-    height: 700px;
-  }
-                             
-                             
-  .reveal .slides section {
+    height: 900px;
+    font-size: 18pt;
+}
+
+.reveal .slides section {
     text-align: left;
     height: 100%;
     overflow-y: auto;
     overflow-x: auto;
-  }
+}
 
-  .reveal .slides section h1,
-  .reveal .slides section h2,
-  .reveal .slides section h3,
-  .reveal .slides section h4,
-  .reveal .slides section p,
-  .reveal .slides section ul,
-  .reveal .slides section ol,
-  .reveal .slides section blockquote {
+.reveal .slides section h1,
+.reveal .slides section h2,
+.reveal .slides section h3,
+.reveal .slides section h4,
+.reveal .slides section p,
+.reveal .slides section ul,
+.reveal .slides section ol,
+.reveal .slides section blockquote {
     text-align: left;
-  }
+}
 
-    .reveal { 
-        font-size: 18pt; 
-    }
+.reveal pre {
+    width: 100%;
+}
 
-    .reveal pre code { 
-        font-size: 15.75pt;
-        line-height: 1.35;
-        max-height: none;
-        padding: 0.4em 0.4em;
-    }
+.reveal pre code {
+    font-size: 15.75pt;
+    line-height: 1.35;
+    max-height: none;
+    padding: 0.4em 0.4em;
+}
 
-    .reveal h1 { font-size: 33pt; }
-    .reveal h2 { font-size: 26.5pt; }
-    .reveal h3 { font-size: 21.5pt; }
-    .reveal h4 { font-size: 19pt; }
+.reveal h1 { font-size: 33pt; }
+.reveal h2 { font-size: 26.5pt; }
+.reveal h3 { font-size: 21.5pt; }
+.reveal h4 { font-size: 19pt; }
 
-    .reveal .title-slide h1 { font-size: 36.25pt; }
-    .reveal .section-slide h2 { font-size: 29.75pt; }
+.reveal .title-slide h1 {
+    font-size: 36.25pt;
+}
 
-    /* scale images to match rescaled font size */
-    .reveal img.latex-svg {
-        zoom: 1.8;
-    }
+.reveal .section-slide h2 {
+    font-size: 29.75pt;
+}
+
+.reveal .title-slide,
+.reveal .section-slide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+}
+
 /* format frame titles like h2 without making them h2 */
-    .reveal .frame-title {
-      font-size: 26.5pt;
-      font-weight: bold;
-      margin: 0 0 0.4em 0;
-      line-height: 1.2;
-    }
+.reveal .frame-title {
+    font-size: 26.5pt;
+    font-weight: bold;
+    margin: 0 0 0.4em;
+    line-height: 1.2;
+}
                              
 /* Prevent spaces from building up between containers */
 .reveal section > * {
-  margin-top: 0;
-  margin-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 .reveal section > * + * {
-  margin-top: 0.4em;
+    margin-top: 0.4em;
 }
 
 .reveal p {
-  line-height: 1.25;
+    line-height: 1.25;
 }
-                                                          
+
+.reveal .theorem,
+.reveal .example,
+.reveal .answer,
+.reveal .note {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid #888;
+    background: rgba(127,127,127,0.08);
+    text-align: left;
+    border-radius: 0.25rem;
+}
+
+.reveal .theorem-title,
+.reveal .example-title,
+.reveal .answer-title,
+.reveal .note-title {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.reveal img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* scale images to match rescaled font size */
+.reveal img.latex-svg {
+    zoom: 1.8;
+}
+
+$extra_css
 </style>
-                            
-                            
-  <style>
-                                                          
-    .reveal .title-slide,
-    .reveal .section-slide {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      height: 100%;
-    }
 
-    .reveal .theorem,
-    .reveal .example,
-    .reveal .answer,
-    .reveal .note {
-      margin: 1rem 0;
-      padding: 0.75rem 1rem;
-      border-left: 4px solid #888;
-      background: rgba(127,127,127,0.08);
-      text-align: left;
-      border-radius: 0.25rem;
-    }
-
-    .reveal .theorem-title,
-    .reveal .example-title,
-    .reveal .answer-title,
-    .reveal .note-title {
-      font-weight: bold;
-      margin-bottom: 0.5rem;
-    }
-
-    .reveal pre {
-      width: 100%;
-    }
-
-    .reveal img {
-      max-width: 100%;
-      height: auto;
-    }
-
-    $extra_css
-  </style>
 </head>
 <body>
   <div class="reveal">
@@ -201,15 +201,9 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
     </div>
   </div>
 
-  <!--script src="$reveal_js_path/reveal.js"></script-->
-  <!--script src="https://cdn.jsdelivr.net/npm/reveal.js-menu@2.1.0/menu.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/customcontrols/plugin.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js-plugins@latest/chalkboard/plugin.js"></script-->
-
   <script>
     Reveal.initialize({
-      embed: true,
+      embedded: true,
       hash: true,
       controls: true,
       controlsTutorial: true,
@@ -235,17 +229,18 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
       //height: 720,
       width: 1000,
       height: 700,
-                                
-      /*
-        menu: {
+
+      menu: {
         side: "left",
         width: "normal",
         numbers: true,
         titleSelector: "",
         hideMissingTitles: true,
         openButton: true,
-        keyboard: true
-        },
+        keyboard: true,
+        loadIcons: false,
+      },
+      //plugins: [ RevealMenu ]                                
 
       
       customcontrols: {
@@ -266,7 +261,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
       chalkboard: {},
 
       plugins: [ RevealMenu, RevealCustomControls, RevealChalkboard ]
-      */
+      
     });
   </script>
 </body>
