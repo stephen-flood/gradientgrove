@@ -14,7 +14,7 @@ gradientgrove-latex-to-markdown --help
 After installation, setuptools exposes the console scripts shown above. When running from a source checkout instead of an installed package, use the equivalent module form and prefix commands with `PYTHONPATH=src`:
 
 ```bash
-PYTHONPATH=src python -m gradientgrove.markdown_publish --help
+PYTHONPATH=src python -m gradientgrove.publish --help
 PYTHONPATH=src python -m gradientgrove.markdown_ast --help
 ```
 
