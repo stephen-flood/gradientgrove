@@ -370,7 +370,7 @@ showstringspaces=false,
 $dateline
 \begin{document}
 \begin{frame}
-\maketitle
+%\maketitle
 \end{frame}
 """.strip())
 
@@ -417,7 +417,7 @@ ARTICLE_HEADER_TEMPLATE = Template(r"""
 \def\drawtikzspline(#1,#2,#3,#4,#5,#6){ \draw[curve,domain=(#1):(#4)] plot (\x , { ( (((#3) + (#6))*(#1) - ((#3) + (#6))*(#4) - 2*(#2) + 2*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) )*((\x)^3) + ( -(((#3) + 2*(#6))*((#1)^2) + ((#3) - (#6))*(#1)*(#4) - (2*(#3) + (#6))*((#4)^2) - 3*((#1) + (#4))*(#2) + 3*((#1) + (#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) *((\x)^2) + ( ((#6)*((#1)^3) + (2*(#3) + (#6))*((#1)^2)*(#4) - ((#3) + 2*(#6))*(#1)*((#4)^2) - (#3)*((#4)^3) - 6*(#1)*(#4)*(#2) + 6*(#1)*(#4)*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) * (\x) + ( -((#6)*((#1)^3)*(#4) + ((#3) - (#6))*((#1)^2)*(#4)^2 - (#3)*(#1)*((#4)^3) - (3*(#1)*((#4)^2) - (#4)^3)*(#2) - ((#1)^3 - 3*((#1)^2)*(#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3))}) }
 %%%% End: TikZ SPLINE 
 \usepackage{unicode-math}
-\usepackage{hyperref}
+\usepackage[colorlinks={true},urlcolor=blue,bookmarks={false}]{hyperref}
 \usepackage[lastexercise]{exercise}
 \renewcommand{\ExerciseHeader}{\textbf{\ExerciseName\ \ExerciseHeaderNB}.}
 \newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
@@ -826,11 +826,18 @@ class SyntaxTree:
         while line_index < len(lines):
 
             current_line = lines[line_index]
+
             stripped_line = current_line.strip()
+            if stripped_line == r"\maketitle":
+                protected_lines.append("!!! maketitle")
+                line_index += 1
+                continue
+
             # begin_match = re.match(r"\\begin\{([^}]+)\}(.*)", current_line)
             begin_match = re.match(r"^(\s*)\\begin\{([^}]+)\}(.*)", current_line)
 
             # print("converting", current_line[:30])
+
 
             if not begin_match:
                 protected_lines.append(current_line)
@@ -1337,22 +1344,58 @@ class SyntaxTree:
             el.append(child.to_etree(transparent_envs))
         return el
 
-    def to_html(self, omit_envs=None, title="Document", transparent_envs=None):
+    # def to_html(self, omit_envs=None, title="Document", transparent_envs=None):
+    def to_html(
+        self,
+        omit_envs=None,
+        title="",
+        author="",
+        date="",
+        transparent_envs=None,
+    ):
         if omit_envs is None:
             omit_envs = []
 
         omit_envs = set(omit_envs or [])
 
         if self.kind == "document":
-            html_body = "".join(
-                ET.tostring(
-                    child.to_etree(transparent_envs),
-                    encoding="unicode",
-                    method="html",
+            # html_body = "".join(
+            #     ET.tostring(
+            #         child.to_etree(transparent_envs),
+            #         encoding="unicode",
+            #         method="html",
+            #     )
+            #     for child in self.children
+            #     if child.name not in omit_envs
+            # )
+            html_parts = []
+
+            # Build HTML body.  Handle special node cases
+            for child in self.children:
+                if child.name in omit_envs:
+                    continue
+
+                if child.name == "maketitle":
+                    html_parts.append(
+                        f"""
+<div class="gg-maketitle">
+    <h1>{html.escape(str(title))}</h1>
+    <div class="gg-maketitle-author">{html.escape(str(author))}</div>
+    <div class="gg-maketitle-date">{html.escape(str(date))}</div>
+</div>
+"""
+                    )
+                    continue
+
+                html_parts.append(
+                    ET.tostring(
+                        child.to_etree(transparent_envs),
+                        encoding="unicode",
+                        method="html",
+                    )
                 )
-                for child in self.children
-                if child.name not in omit_envs
-            )
+
+            html_body = "".join(html_parts)
 
             from pathlib import Path
             SCRIPT_DIR = Path(__file__).resolve().parent
@@ -1614,6 +1657,9 @@ class SyntaxTree:
                 return "\\pause\n" + body
 
             body = "".join(child._render_latex(omit_envs, transparent_envs, progress=progress) for child in self.children)
+
+            if env == "maketitle":
+                return "\\maketitle"
 
             if env == "frame":
                 title = f"{{{self.title}}}" if self.title else ""

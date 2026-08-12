@@ -265,7 +265,11 @@ def convert_file(filename, output_directory, *,
         # variant=version_str+"-base"
         variant = version_str
 
-        output = tree.to_html(title=title)
+        output = tree.to_html(
+            title=title,
+            author=author,
+            date=date,
+        )
         output_file = output_directory / f"{page_name}{variant}.html"
         output_file.write_text(output, encoding="utf-8")
 
@@ -277,7 +281,11 @@ def convert_file(filename, output_directory, *,
         
         variant=version_str+"-handout"
 
-        output = tree.to_html(title=title)
+        output = tree.to_html(
+            title=title,
+            author=author,
+            date=date,
+        )
         output_file = output_directory / f"{page_name}{variant}.html"
         output_file.write_text(output, encoding="utf-8")
 

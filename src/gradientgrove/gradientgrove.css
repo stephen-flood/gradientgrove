@@ -70,6 +70,10 @@ h4 { font-size: 1em; }
 h5 { font-size: 0.875em; }
 h6 { font-size: 0.85em; color: var(--gg-muted); }
 
+dt {
+    font-weight: bold;
+}
+
 p, blockquote, ul, ol, dl, table, pre, details, .admonition {
     margin-top: 0;
     margin-bottom: 1rem;
@@ -239,6 +243,20 @@ details.danger {
 .admonition > :last-child,
 details > :last-child {
     margin-bottom: 0;
+}
+
+.gg-maketitle {
+    text-align: center;
+    margin: 2rem 0 3rem;
+}
+
+.gg-maketitle h1 {
+    margin-bottom: 0.5rem;
+}
+
+.gg-maketitle-author,
+.gg-maketitle-date {
+    margin: 0.25rem 0;
 }
 
 .gg-transparent-env {
