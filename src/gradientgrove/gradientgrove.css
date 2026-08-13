@@ -246,6 +246,7 @@ details > :last-child {
 }
 
 .gg-maketitle {
+    font-size: 1.25em;
     text-align: center;
     margin: 2rem 0 3rem;
 }
@@ -310,17 +311,22 @@ details > :last-child {
 @media print {
     @page {
         size: letter;
-        margin: 1in;
+        margin-right: 0in;
+        margin-left: 0in;
+        margin-top: 1in;
+        margin-bottom: 1in;
+        
     }
 
     html,
     body {
         width: 8.5in;
         min-height: 11in;
+        margin: 0in;
         background: white;
         color: black;
 
-        font-size: 10pt;
+        font-size: 9pt;
         font-family: serif;
     }
 

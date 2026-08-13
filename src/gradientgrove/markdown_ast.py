@@ -1376,6 +1376,7 @@ class SyntaxTree:
                     continue
 
                 if child.name == "maketitle":
+                    
                     html_parts.append(
                         f"""
 <div class="gg-maketitle">
