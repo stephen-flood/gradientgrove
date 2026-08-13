@@ -423,6 +423,7 @@ ARTICLE_HEADER_TEMPLATE = Template(r"""
 \newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
 \newenvironment{answer}{\begin{Answer}}{\end{Answer}}
 \renewcommand{\AnswerHeader}{\textit{Solution (\ExerciseName~\ExerciseHeaderNB}). }
+\setcounter{tocdepth}{1}
 \AtEndEnvironment{Answer}{\dotfill$\square$}
 \usepackage{listings}
 \newcommand{\passthrough}[1]{#1}
@@ -830,6 +831,13 @@ class SyntaxTree:
             stripped_line = current_line.strip()
             if stripped_line == r"\maketitle":
                 protected_lines.append("!!! maketitle")
+                line_index += 1
+                continue
+
+            if stripped_line == r"\tableofcontents":
+                token = new_placeholder()
+                placeholder_map[token] = "[TOC]"
+                protected_lines.append(token)
                 line_index += 1
                 continue
 

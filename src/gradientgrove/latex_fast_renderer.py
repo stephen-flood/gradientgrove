@@ -140,6 +140,9 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
 
         key = node.name if node.kind in {"admonition", "details"} else (node.tag or node.name)
 
+        if node.tag == "div" and "toc" in node.attrs.get("class", "").split():
+            return "\n\\tableofcontents\n"
+
         # Math produced by pymdownx.arithmatex is already LaTeX-like content.
         # Display math is usually div.arithmatex; inline math is usually span.arithmatex.
         if "arithmatex" in node.attrs.get("class", "").split():

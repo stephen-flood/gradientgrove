@@ -35,6 +35,9 @@ DEFAULT_EXTENSIONS = [
 ]
 
 HTML_EXTENSION_CONFIGS = {
+    "toc": {
+        "toc_depth": 2,
+    },
     "pymdownx.arithmatex": {"generic": True},
     "pymdownx.superfences": {
         "custom_fences": [
