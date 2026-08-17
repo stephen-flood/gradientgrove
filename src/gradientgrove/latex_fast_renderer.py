@@ -138,6 +138,9 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
                 amount = "1in"
             return f"\n\\vspace{{{amount}}}\n"
 
+        if node.name == "maketitle":
+            return "\n\\maketitle"
+
         key = node.name if node.kind in {"admonition", "details"} else (node.tag or node.name)
 
         if node.tag == "div" and "toc" in node.attrs.get("class", "").split():

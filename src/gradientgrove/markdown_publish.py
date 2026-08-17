@@ -94,10 +94,11 @@ def compile_latex(filename):
         ["lualatex", "-interaction=nonstopmode", filename.name],
         cwd=filename.parent,
         text=True,
-        # capture_output=True,
-        stdout=subprocess.DEVNULL,
+        capture_output=True,
+        # stdout=subprocess.DEVNULL,
         # stderr=subprocess.STDOUT,
     )
+
     if result.returncode != 0:
         pdf = filename.with_suffix(".pdf")
         if not pdf.exists():
@@ -297,7 +298,8 @@ def convert_file(filename, output_directory, *,
     if revealjs:
         tree = build_tree(text, number=True, render_latex_fences=True)
         embed_local_images(tree, image_base)
-        variant=version_str+"-revealjs"
+        # variant=version_str+"-revealjs"
+        variant=version_str+"-slides"
 
         output = tree.to_revealjs(title=title)
         output_file = output_directory / f"{page_name}{variant}.html"
@@ -475,8 +477,8 @@ def main():
             **options
         )
         # copy any generated PDFs back into the tex file directory. 
-        for pdf in (p for p in generated if p.suffix == ".pdf"):
-            shutil.copy2(pdf, tex_directory)
+        #for pdf in (p for p in generated if p.suffix == ".pdf"):
+        #    shutil.copy2(pdf, tex_directory)
 
     elif path.is_dir():
         output_directory = path / ".publish_cache"

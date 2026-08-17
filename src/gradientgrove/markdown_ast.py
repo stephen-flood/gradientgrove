@@ -234,6 +234,7 @@ $extra_css
         side: "left",
         width: "normal",
         numbers: true,
+        headers: 'h1, h2',
         titleSelector: "",
         hideMissingTitles: true,
         openButton: true,
@@ -418,13 +419,18 @@ ARTICLE_HEADER_TEMPLATE = Template(r"""
 %%%% End: TikZ SPLINE 
 \usepackage{unicode-math}
 \usepackage[colorlinks={true},urlcolor=blue,bookmarks={false}]{hyperref}
-\usepackage[lastexercise]{exercise}
-\renewcommand{\ExerciseHeader}{\textbf{\ExerciseName\ \ExerciseHeaderNB}.}
-\newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
-\newenvironment{answer}{\begin{Answer}}{\end{Answer}}
-\renewcommand{\AnswerHeader}{\textit{Solution (\ExerciseName~\ExerciseHeaderNB}). }
+%\usepackage[lastexercise]{exercise}
+%\renewcommand{\ExerciseHeader}{\textbf{\ExerciseName\ \ExerciseHeaderNB}.}
+%\newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
+%\newenvironment{answer}{\begin{Answer}}{\end{Answer}}
+%\renewcommand{\AnswerHeader}{\textit{Solution (\ExerciseName~\ExerciseHeaderNB}). }
+\newcounter{exercise}
+\newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
+%\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\dotfill$\square$\par\medskip}
+%\newenvironment{answer}{\begin{adjustwidth}{1.5em}{0pt}\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\end{adjustwidth}\medskip}
+\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise.}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
 \setcounter{tocdepth}{1}
-\AtEndEnvironment{Answer}{\dotfill$\square$}
+%\AtEndEnvironment{Answer}{\dotfill$\square$}
 \usepackage{listings}
 \newcommand{\passthrough}[1]{#1}
 \newcommand{\pandocbounded}[1]{#1}
@@ -452,14 +458,18 @@ showstringspaces=false,
 %
 \newcommand{\tightlist}{}
 \usepackage[most]{tcolorbox}
+% Formatting for beamerarticle frame enviornment
 \BeforeBeginEnvironment{frame}{\begin{tcolorbox}[enhanced,breakable,boxrule=0.6pt,colback=white,colframe=black,arc=6pt,left=6pt,right=6pt,top=6pt,bottom=6pt,]}
 \AfterEndEnvironment{frame}{\end{tcolorbox}}
+% New environments
+\newtcolorbox{warning}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+\newtcolorbox{todo}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+
+
 \title{$title}
 \author{$author}
 $dateline
 \begin{document}
-\maketitle
-%\tableofcontents
 """.strip())
 
 # ------------------------------------------------------------
@@ -1668,7 +1678,7 @@ class SyntaxTree:
             body = "".join(child._render_latex(omit_envs, transparent_envs, progress=progress) for child in self.children)
 
             if env == "maketitle":
-                return "\\maketitle"
+                return "\n\\maketitle"
 
             if env == "frame":
                 title = f"{{{self.title}}}" if self.title else ""
