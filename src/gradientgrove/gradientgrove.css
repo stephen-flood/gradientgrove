@@ -299,6 +299,11 @@ details > :last-child {
 
 .gg-question {
     margin: 1em 0;
+    display: flex;
+    flex-direction: column;
+}
+.gg-question:has(.gg-vfill) {
+    flex: 1 1 auto;
 }
 .gg-question-2 {
     margin-left: 2em;

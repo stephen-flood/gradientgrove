@@ -1337,7 +1337,7 @@ class SyntaxTree:
         """Recursively rebuild the html etree based on the current AST after mutations (like numbering and removal) """
         transparent_envs = set(transparent_envs or [])
 
-        if self.name in {"page", "exam"}:
+        if self.name == "page":
             el = ET.Element("section", {"class": "gg-page"})
             content = ET.SubElement(el, "div", {"class": "gg-page-content"})
             el.tail = self.tail
@@ -1376,14 +1376,14 @@ class SyntaxTree:
                 el.append(child.to_etree(transparent_envs))
             return el
 
-        # if self.name == "exam":
-        #     el = ET.Element("div", {"class": "gg-exam"})
-        #     el.tail = self.tail
+        if self.name == "exam":
+            el = ET.Element("div", {"class": "gg-exam"})
+            el.tail = self.tail
 
-        #     for child in self.children:
-        #         el.append(child.to_etree(transparent_envs))
+            for child in self.children:
+                el.append(child.to_etree(transparent_envs))
 
-        #     return el
+            return el
         
         if self.name == "question":
             level = self.attrs["level"]
@@ -1391,13 +1391,19 @@ class SyntaxTree:
 
             label = f"{number}." if level == "1" else f"({number})"
             points = (self.title or "").strip()
-            points = f" [{points} points]" if points.isdigit() else ""
+            text = label + (f" [{points} points]" if points.isdigit() else "") + " "
 
-            el = ET.Element("div", {"class": f"gg-question gg-question-{level}"})
-            el.text = label + points + " "
+            if level == "1":
+                el = ET.Element("section", {"class": "gg-page"})
+                content = ET.SubElement(el, "div", {"class": "gg-page-content"})
+            else:
+                el = ET.Element("div", {"class": f"gg-question gg-question-{level}"})
+                content = el
+
+            content.text = text + (self.text or "")
 
             for child in self.children:
-                el.append(child.to_etree(transparent_envs))
+                content.append(child.to_etree(transparent_envs))
 
             el.tail = self.tail
             return el
