@@ -88,6 +88,7 @@ You can generate embed graphics using latex (assumed to be tikz), and provide an
 
     !!! vfillbox
 
+    Text after end of list wraps
 
 # Mathematics environments
 

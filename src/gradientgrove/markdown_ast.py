@@ -1644,10 +1644,18 @@ class SyntaxTree:
                     f'<h2>{heading}</h2></section>'
                 )
             elif node.name == "frame":
-                slide_title = (
-                    f'<div class="frame-title">{html.escape(node.title)}</div>\n'
-                    if node.title else ""
-                )
+                if node.title and node.title.lower() != "frame":
+                    slide_title = (
+                        f'<div class="frame-title">{html.escape(node.title)}</div>\n'
+                        if node.title else ""
+                    )
+                else: 
+                    slide_title = ""
+
+                # slide_title = (
+                #     f'<div class="frame-title">{html.escape(node.title)}</div>\n'
+                #     if node.title else ""
+                # )
                 body = "".join(child._render_reveal_content(transparent_envs) for child in node.children)
                 slides.append(f"<section>\n{slide_title}{body}\n</section>")
 

@@ -153,7 +153,7 @@ def embed_local_images(tree, markdown_parent):
         node.attrs["src"] = f"data:{mime_type};base64,{image_bytes}"
 
 
-def build_tree(text, *, omit_envs=(), number=False, render_latex_fences=True):
+def build_tree(text, *, omit_envs=("todo",), number=False, render_latex_fences=True):
     """Build a Markdown syntax tree."""
     tree = SyntaxTree.from_markdown(
         text,
@@ -286,7 +286,7 @@ def convert_file(filename, output_directory, *,
         generated.append(output_file)
 
     if handout:
-        tree = build_tree(text, omit_envs=["answer"], number=True, render_latex_fences=True)
+        tree = build_tree(text, omit_envs=["answer","todo"], number=True, render_latex_fences=True)
         embed_local_images(tree, image_base)
         
         variant=version_str+"-handout"
@@ -336,7 +336,7 @@ def convert_file(filename, output_directory, *,
         # generated.append(output_file)
 
     if tex_handout:
-        tree = build_tree(text, number=False, omit_envs = ["answer"], render_latex_fences=False)
+        tree = build_tree(text, number=False, omit_envs = ["answer","todo"], render_latex_fences=False)
         resolve_local_image_paths(tree, image_base)
         variant=version_str+"-handout"
         output = tree.to_latex(
