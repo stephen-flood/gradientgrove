@@ -1337,7 +1337,7 @@ class SyntaxTree:
         """Recursively rebuild the html etree based on the current AST after mutations (like numbering and removal) """
         transparent_envs = set(transparent_envs or [])
 
-        if self.name == "page":
+        if self.name in {"page", "exam"}:
             el = ET.Element("section", {"class": "gg-page"})
             content = ET.SubElement(el, "div", {"class": "gg-page-content"})
             el.tail = self.tail
@@ -1368,8 +1368,6 @@ class SyntaxTree:
             el.tail = self.tail
             return el
         
-        
-
         if self.kind in {"admonition", "details"} and self.name in transparent_envs:
             el = ET.Element("div", {"class": "gg-transparent-env"})
             el.text = self.text
@@ -1378,6 +1376,56 @@ class SyntaxTree:
                 el.append(child.to_etree(transparent_envs))
             return el
 
+        # if self.name == "exam":
+        #     el = ET.Element("div", {"class": "gg-exam"})
+        #     el.tail = self.tail
+
+        #     for child in self.children:
+        #         el.append(child.to_etree(transparent_envs))
+
+        #     return el
+        
+        if self.name == "question":
+            level = self.attrs["level"]
+            number = self.attrs["number"]
+
+            label = f"{number}." if level == "1" else f"({number})"
+            points = (self.title or "").strip()
+            points = f" [{points} points]" if points.isdigit() else ""
+
+            el = ET.Element("div", {"class": f"gg-question gg-question-{level}"})
+            el.text = label + points + " "
+
+            for child in self.children:
+                el.append(child.to_etree(transparent_envs))
+
+            el.tail = self.tail
+            return el
+
+        if self.name == "gradetable":
+            questions = [
+                child for child in self.parent.children
+                if child.name == "question"
+            ]
+
+            total = sum(int(q.attrs["points"]) for q in questions)
+
+            rows = [
+                ["Question"] + [q.attrs["number"] for q in questions] + ["Total"],
+                ["Points"]   + [q.attrs["points"] for q in questions] + [str(total)],
+                ["Score"]    + ["" for q in questions] + [""],
+            ]
+
+            table = ET.Element("table", {"class": "gg-gradetable"})
+
+            for values in rows:
+                row = ET.SubElement(table, "tr")
+                for value in values:
+                    ET.SubElement(row, "td").text = value
+
+            table.tail = self.tail
+            return table
+        
         if self.kind == "admonition":
             attrs = dict(self.attrs)
             attrs["class"] = f"admonition {self.name}"

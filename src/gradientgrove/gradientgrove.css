@@ -297,6 +297,16 @@ details > :last-child {
     break-before: page;
 }
 
+.gg-question {
+    margin: 1em 0;
+}
+.gg-question-2 {
+    margin-left: 2em;
+}
+.gg-question-3 {
+    margin-left: 4em;
+}
+
 @media print {
     @page {
         size: letter;
