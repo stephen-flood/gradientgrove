@@ -1091,6 +1091,11 @@ class SyntaxTree:
         )
         # print("length of text after strip comments", len(text))
 
+        # Strip everything after the first \end{document}
+        before, marker, _ = text.partition(r"\end{document}")
+        if marker:
+            text = before + marker
+
         # Capture document metadata, store as yaml
         pandoc_md = subprocess.run(
             ["pandoc", "-f", "latex", "-t", "markdown", "-s"],
@@ -1305,6 +1310,11 @@ class SyntaxTree:
             el.tail = self.tail
             return el
 
+        if self.name == "vfillbox":
+            el = ET.Element("div", {"class": "gg-vfill gg-vfillbox"})
+            el.tail = self.tail
+            return el
+
         if self.name == "vspace":
             amount = self.title
             if amount in {None, "", "vspace", "Vspace"}:
@@ -1312,6 +1322,8 @@ class SyntaxTree:
             el = ET.Element("div", {"class": "gg-vspace", "style": f"height: {amount}"})
             el.tail = self.tail
             return el
+        
+        
 
         if self.kind in {"admonition", "details"} and self.name in transparent_envs:
             el = ET.Element("div", {"class": "gg-transparent-env"})

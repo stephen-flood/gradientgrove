@@ -43,7 +43,7 @@ html {
     line-height: 1.5;
 }
 
-body.markdown-body {
+body {
     min-width: 200px;
     max-width: 980px;
     margin: 0 auto;
@@ -268,16 +268,17 @@ details > :last-child {
     box-sizing: border-box;
     width: 8.5in;
     min-height: 11in;
-    margin: 1rem auto;
+    /*margin: 1rem auto;*/
+    margin: 0in;
     padding: 0.75in;
     background: var(--gg-bg);
     box-shadow: 0 0 0.2in rgb(0 0 0 / 15%);
-    break-before: page;
+    /* break-before: page; */
     break-after: page;
 }
 
 .gg-page-content {
-    min-height: 9.5in;
+    min-height: 9in;
     display: flex;
     flex-direction: column;
 }
@@ -285,7 +286,9 @@ details > :last-child {
 .gg-vfill {
     flex: 1 1 auto;
 }
-
+.gg-vfillbox {
+    border: 1px solid currentColor;
+}
 .gg-vspace {
     flex: 0 0 auto;
 }
@@ -294,59 +297,39 @@ details > :last-child {
     break-before: page;
 }
 
-@media (max-width: 52rem) {
-    body.markdown-body {
-        padding: 1rem;
-    }
-
-    .gg-page {
-        width: 100%;
-        min-height: 0;
-        margin: 0;
-        padding: 1rem;
-        box-shadow: none;
-    }
-}
-
 @media print {
     @page {
         size: letter;
-        margin-right: 0in;
-        margin-left: 0in;
-        margin-top: 1in;
-        margin-bottom: 1in;
-        
+        /* margin: 1in; */
+        margin-bottom:0in;
+        padding: 0;
     }
 
     html,
     body {
-        width: 8.5in;
-        min-height: 11in;
-        margin: 0in;
+        margin: 0;
+        padding: 0;
         background: white;
         color: black;
-
         font-size: 9pt;
         font-family: serif;
     }
-
-    body.markdown-body {
-        max-width: none;
-        margin: 0;
-        padding: 0.75in;
-    }
-
-    body.markdown-body:has(.gg-page) {
-        padding: 0;
-    }
-
     .gg-page {
+        height: 9in;
+        min-height: 0;
+        width: 100%;
         margin: 0;
+        padding: 0;
         box-shadow: none;
-        background: white;
-        color: black;
     }
-
+    .gg-page-content {
+        height: 100%;
+        min-height: 0;
+    }
+    .gg-vfill {
+        flex: 1 1 0;
+    }
+    
     a {
         color: inherit;
         text-decoration: underline;

@@ -132,6 +132,11 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.name == "vfill":
             return "\n\\vspace{\\stretch{1}}\n"
 
+        if node.name == "vfillbox":
+            # return "\n\\begin{tcolorbox}[height fill]\n\\end{tcolorbox}\n"
+            # return "\n\\begin{tcolorbox}\\vspace{\\stretch{1}}\\end{tcolorbox}\n"
+            return "\n\\noindent\\rule[-1em]{.4pt}{1em}\\hrulefill\\rule[-1em]{.4pt}{1em}\\par\\vspace{\\stretch{1}}\\par\\noindent\\rule{.4pt}{1em}\\hrulefill\\rule{.4pt}{1em}\\par"
+
         if node.name == "vspace":
             amount = (node.title or "").strip()
             if amount.lower() in {"", "vspace"}:

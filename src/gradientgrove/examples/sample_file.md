@@ -68,6 +68,27 @@ You can generate embed graphics using latex (assumed to be tikz), and provide an
 
         Exercise on next page
 
+!!! page 
+
+    ## Gradescope Worksheet
+
+    Assignment: 
+
+    Name: 
+
+    1. heres a question
+
+    !!! vfillbox
+
+    2. here's another
+
+    !!! vfillbox
+
+    3. Here's a third
+
+    !!! vfillbox
+
+
 # Mathematics environments
 
 !!! definition 
