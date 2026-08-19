@@ -123,12 +123,14 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.kind == "document":
             return "".join(render(child) for child in node.children)
 
+        ### CONTROLLING SPACING and PAGEBREAKS
+         
         if node.name == "page":
             return  "\n\\newpage\n" + body(node) + "\n\\newpage\n"
 
         if node.name == "newpage":
             return "\n\\newpage\n"
-
+        
         if node.name == "vfill":
             return "\n\\vspace{\\stretch{1}}\n"
 
@@ -143,13 +145,76 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
                 amount = "1in"
             return f"\n\\vspace{{{amount}}}\n"
 
+        ### FORMATTING DOCUMENTS 
         if node.name == "maketitle":
             return "\n\\maketitle"
 
-        key = node.name if node.kind in {"admonition", "details"} else (node.tag or node.name)
-
         if node.tag == "div" and "toc" in node.attrs.get("class", "").split():
             return "\n\\tableofcontents\n"
+
+
+        ### EXAM-LIKE ENVIRONMENT
+        if node.name == "exam":
+            # return "\n\\begin{enumerate}\n" + body(node) + "\\end{enumerate}\n"
+            out = ""
+            questions_started = False
+            for c in node.children:
+                if c.name == "question" and not questions_started:
+                    out += "\n\\begin{enumerate}\n"
+                    questions_started = True
+                out += render(c)
+            if questions_started:
+                out += "\n\\end{enumerate}\\n"
+            return out
+
+        if node.name == "question":
+
+            points = (node.title or "").strip()
+            points = f"({points} points)" if points.isdigit() else ""
+            out = f"\n\\item {points}\n"
+
+            has_subparts = False
+
+            for c in node.children:
+                if c.name =="question" and not has_subparts:
+                        out += "\n\\begin{enumerate}\n"
+                        has_subparts = True
+                out += render(c)
+
+            if has_subparts:
+                out += "\\end{enumerate}\n"
+                
+            return out
+
+
+        if node.name == "gradetable":
+            exam = node.parent
+            questions = [
+                child for child in exam.children
+                if child.name == "question"
+            ]
+            cols = "|c|" + "|".join(["c" for qn in questions]) + "|c|"
+            title_row = "Question & "  + " & ".join( [ qn.attrs["number"] for qn in questions ] )
+            points_row = "Points & " + " & ".join([ qn.attrs["points"] for qn in questions])
+            score_row = "Score & " + " & ".join([ " " for qn in questions ])
+
+            total = sum([ int(qn.attrs["points"]) for qn in questions])
+
+            return (
+                "\n\\begin{center}\n"
+                + "\\setlength{\\tabcolsep}{1em} \n {\\renewcommand{\\arraystretch}{1.75} \n"
+                + "\\begin{tabular}{"+cols+"}\n\\hline\n"
+                + title_row + " & Total \\\\ \\hline \n"
+                + points_row + " & " + str(total) + "\\\\ \\hline \n"
+                + score_row +  " & \\\\ \\hline" 
+                + "\\end{tabular}\n"
+                + "\\end{center}\n"
+            )
+
+
+
+        ### OTHER THINGS: 
+        key = node.name if node.kind in {"admonition", "details"} else (node.tag or node.name)
 
         # Math produced by pymdownx.arithmatex is already LaTeX-like content.
         # Display math is usually div.arithmatex; inline math is usually span.arithmatex.

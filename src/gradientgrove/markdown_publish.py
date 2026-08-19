@@ -161,9 +161,15 @@ def build_tree(text, *, omit_envs=(), number=False, render_latex_fences=True):
         extension_configs=HTML_EXTENSION_CONFIGS if render_latex_fences else TEX_EXTENSION_CONFIGS,
     )
     tree.prune_envs(set(omit_envs))
+
+    for node in tree.walk():
+        if node.name == "exam":
+            node.number_questions()
+            
     if number:
         tree.number_envs(DEFAULT_NUMBERED_ENVS)
         tree.number_sections()
+
     return tree
 
 

@@ -528,6 +528,10 @@ class SyntaxTree:
         self.etree = etree        # original etree node (escape hatch / backing store)
         self.call_pandoc = False
 
+        self.parent = None
+        for child in self.children:
+            child.parent = self
+
     # @classmethod
     # def from_markdown(cls, text, *, extensions=None, extension_configs=None):
     #     sink = {}
@@ -1245,6 +1249,47 @@ class SyntaxTree:
                 node.text = f"{prefix} {node.text}"
             else:
                 node.text = prefix
+
+
+    def number_questions(self, depth=0, prefix=""):
+        """
+        Number question environments to simulate latex exam class
+        Also record level to identify part/subparts when building grade table
+        Finally record the label that will be used when printing
+        """
+        questions = [child for child in self.children if child.name == "question"]
+        total_points = 0 
+
+        for i, question in enumerate(questions, 1):
+            level = depth + 1
+
+            if level == 1: # Questions
+                number = str(i)
+                label = number
+            elif level == 2: # Parts
+                number = chr(ord("a") + i - 1)
+                label = f"{prefix}({number})"
+            else: # Subparts
+                number = str(i)
+                label = f"{prefix}({number})"
+
+            question.attrs["level"] = str(level)
+            question.attrs["number"] = number
+            question.attrs["label"] = label
+
+            points_below = question.number_questions(level, label)
+            points_labeled = (question.title or "").strip()
+
+            if points_labeled.isdigit():
+                points =  int(points_labeled)
+            else: 
+                points = points_below
+
+            question.attrs["points"] = str(points) 
+            total_points += points
+
+        return total_points 
+
 
     # def pretty_print(self, indent=0):
         # """Print the current AST in a human readable form for debugging"""
