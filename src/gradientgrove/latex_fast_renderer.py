@@ -31,8 +31,9 @@ LATEX_RULES = {
     "em":         (Template("\\emph{$body}"), "tex"),
     "i":          (Template("\\emph{$body}"), "tex"),
     "code":       (Template("\\lstinline`$raw`"), "raw"),
-    "a":          (Template("\\href{$href}{$body}"), "tex"),
-
+    # "a":          (Template("\\href{$href}{$body}"), "tex"),
+    "a":          (Template("\\href{$href}{$body}\\footnote{\\url{$href}}"),"tex"),
+    
     # Start list environments with a newline so nested lists do not attach to prior item text.
     "ul":         (Template("\n\\begin{itemize}\n$body\\end{itemize}\n\n"), "tex"),
     "ol":         (Template("\n\\begin{enumerate}\n$body\\end{enumerate}\n\n"), "tex"),
@@ -144,6 +145,22 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             if amount.lower() in {"", "vspace"}:
                 amount = "1in"
             return f"\n\\vspace{{{amount}}}\n"
+
+        if node.name == "vspacebox":
+            amount = (node.title or "").strip()
+            if amount.lower() in {"", "vspacebox"}:
+                amount = "1in"
+        #     return f"\n\\noindent\\framebox[\\linewidth]{{\\rule{{0pt}}{{{amount}}}}}\\par\n"
+            return (
+                f"\n\\begin{{tcolorbox}}["
+                f"height={amount},"
+                "colback=white,"
+                "colframe=black,"
+                "arc=0pt,"
+                "boxrule=0.4pt"
+                "]\n"
+                "\\end{tcolorbox}\n"
+            )
 
         ### FORMATTING DOCUMENTS 
         if node.name == "maketitle":

@@ -1368,6 +1368,17 @@ class SyntaxTree:
             el.tail = self.tail
             return el
         
+        if self.name == "vspacebox":
+            amount = self.title
+            if amount in {None, "", "vspacebox", "Vspacebox"}:
+                amount = "1in"
+            el = ET.Element(
+                "div",
+                {"class": "gg-vspace gg-vfillbox", "style": f"height: {amount}"}
+            )
+            el.tail = self.tail
+            return el
+        
         if self.kind in {"admonition", "details"} and self.name in transparent_envs:
             el = ET.Element("div", {"class": "gg-transparent-env"})
             el.text = self.text
