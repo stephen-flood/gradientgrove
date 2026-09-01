@@ -28,6 +28,8 @@
 --gg-math-border: #9fb8c8;
 --gg-math-accent: #50758d;
 --gg-math-title: #294b61;    
+    --gg-exercise-bg: #f3f6f1;
+    --gg-exercise-border: #819276;
 }
 
 
@@ -185,6 +187,19 @@ summary {
 
 summary {
     cursor: pointer;
+}
+
+.admonition.frame,
+details.frame {
+    background: #fff;
+    border: 1px solid var(--gg-border);
+}
+
+.admonition.exercise,
+details.exercise {
+    background: var(--gg-exercise-bg);
+    border: 1px solid var(--gg-exercise-border);
+    border-left: 0.35rem solid var(--gg-exercise-border);
 }
 
 .admonition.theorem,
