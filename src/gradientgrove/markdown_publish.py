@@ -279,6 +279,7 @@ def convert_file(filename, output_directory, *,
             title=title,
             author=author,
             date=date,
+            transparent_envs=["pause"],
         )
         output_file = output_directory / f"{page_name}{variant}.html"
         output_file.write_text(output, encoding="utf-8")
@@ -295,6 +296,7 @@ def convert_file(filename, output_directory, *,
             title=title,
             author=author,
             date=date,
+            transparent_envs=["pause"],
         )
         output_file = output_directory / f"{page_name}{variant}.html"
         output_file.write_text(output, encoding="utf-8")
