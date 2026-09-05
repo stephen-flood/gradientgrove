@@ -132,13 +132,30 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.name == "newpage":
             return "\n\\newpage\n"
         
+        # if node.name == "vfill":
+        #     return "\n\\vspace{\\stretch{1}}\n"
         if node.name == "vfill":
-            return "\n\\vspace{\\stretch{1}}\n"
+            stretch = (node.title or "").strip()
+            if stretch.lower() in {"", "vfill"}:
+                stretch = "1"
+            return f"\n\\vspace{{\\stretch{{{stretch}}}}}\n"
+
+        # if node.name == "vfillbox":
+        #     # return "\n\\begin{tcolorbox}[height fill]\n\\end{tcolorbox}\n"
+        #     # return "\n\\begin{tcolorbox}\\vspace{\\stretch{1}}\\end{tcolorbox}\n"
+        #     return "\n\\noindent\\rule[-1em]{.4pt}{1em}\\hrulefill\\rule[-1em]{.4pt}{1em}\\par\\vspace{\\stretch{1}}\\par\\noindent\\rule{.4pt}{1em}\\hrulefill\\rule{.4pt}{1em}\\par"
 
         if node.name == "vfillbox":
-            # return "\n\\begin{tcolorbox}[height fill]\n\\end{tcolorbox}\n"
-            # return "\n\\begin{tcolorbox}\\vspace{\\stretch{1}}\\end{tcolorbox}\n"
-            return "\n\\noindent\\rule[-1em]{.4pt}{1em}\\hrulefill\\rule[-1em]{.4pt}{1em}\\par\\vspace{\\stretch{1}}\\par\\noindent\\rule{.4pt}{1em}\\hrulefill\\rule{.4pt}{1em}\\par"
+            stretch = (node.title or "").strip()
+            if stretch.lower() in {"", "vfillbox"}:
+                stretch = "1"
+            return (
+                "\\n\\noindent\\rule[-1em]{.4pt}{1em}"
+                "\\hrulefill\\rule[-1em]{.4pt}{1em}\\par"
+                f"\\vspace{{\\stretch{{{stretch}}}}}\\par"
+                "\\noindent\\rule{.4pt}{1em}"
+                "\\hrulefill\\rule{.4pt}{1em}\\par"
+            )
 
         if node.name == "vspace":
             amount = (node.title or "").strip()
@@ -150,7 +167,8 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             amount = (node.title or "").strip()
             if amount.lower() in {"", "vspacebox"}:
                 amount = "1in"
-        #     return f"\n\\noindent\\framebox[\\linewidth]{{\\rule{{0pt}}{{{amount}}}}}\\par\n"
+            #return f"\n\\noindent\\framebox[\\linewidth]{{\\rule{{0pt}}{{{amount}}}}}\\par\n"
+
             return (
                 f"\n\\begin{{tcolorbox}}["
                 f"height={amount},"
@@ -239,9 +257,21 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             math = raw(node).strip("\n")
             return f"\n\n{math}\n\n" if key == "div" else math
 
-        if key == "img":  # Render image 
+        # if key == "img":  # Render image 
+            # src = node.attrs.get("src", "")
+            # return rf"\includegraphics[width=\linewidth]{{{src}}}"
+
+        if key == "img":
             src = node.attrs.get("src", "")
-            return rf"\includegraphics[width=\linewidth]{{{src}}}"
+            width = (node.attrs.get("width") or "").strip()
+
+            if width.endswith("%"):
+                fraction = float(width[:-1]) / 100
+                width = f"{fraction:g}\\linewidth"
+            elif not width:
+                width = "\\linewidth"
+
+            return rf"\includegraphics[width={width}]{{{src}}}"
 
         if key not in LATEX_RULES:
             if node.kind in {"admonition", "details"}:

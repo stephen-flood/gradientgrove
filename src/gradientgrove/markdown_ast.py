@@ -1350,13 +1350,29 @@ class SyntaxTree:
             el.tail = self.tail
             return el
 
+        # if self.name == "vfill":
+        #     el = ET.Element("div", {"class": "gg-vfill"})
+        #     el.tail = self.tail
+        #     return el
         if self.name == "vfill":
-            el = ET.Element("div", {"class": "gg-vfill"})
+            stretch = (self.title or "").strip()
+            if stretch.lower() in {"", "vfill"}:
+                stretch = "1"
+
+            el = ET.Element( "div", { "class": "gg-vfill", "style": f"flex-grow: {stretch}", },)
             el.tail = self.tail
             return el
 
+        # if self.name == "vfillbox":
+        #     el = ET.Element("div", {"class": "gg-vfill gg-vfillbox"})
+        #     el.tail = self.tail
+        #     return el
         if self.name == "vfillbox":
-            el = ET.Element("div", {"class": "gg-vfill gg-vfillbox"})
+            stretch = (self.title or "").strip()
+            if stretch.lower() in {"", "vfillbox"}:
+                stretch = "1"
+
+            el = ET.Element( "div", {"class": "gg-vfill gg-vfillbox", "style": f"flex-grow: {stretch}", }, )
             el.tail = self.tail
             return el
 
