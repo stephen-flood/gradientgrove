@@ -34,6 +34,14 @@ DEFAULT_EXTENSIONS = [
     "pymdownx.superfences",
 ]
 
+WORKSHEET_LAYOUT_ENVS = {
+    "newpage",
+    "vfill",
+    "vfillbox",
+    "vspace",
+    "vspacebox",
+}
+
 HTML_EXTENSION_CONFIGS = {
     "toc": {
         "toc_depth": 2,
@@ -153,7 +161,11 @@ def embed_local_images(tree, markdown_parent):
         node.attrs["src"] = f"data:{mime_type};base64,{image_bytes}"
 
 
-def build_tree(text, *, omit_envs=("todo",), number=False, render_latex_fences=True):
+def build_tree(text, *, 
+               omit_envs=("todo",), 
+               number=False, 
+               render_latex_fences=True,
+               ignore_exercise_layout=True,):
     """Build a Markdown syntax tree."""
     tree = SyntaxTree.from_markdown(
         text,
@@ -169,6 +181,15 @@ def build_tree(text, *, omit_envs=("todo",), number=False, render_latex_fences=T
     if number:
         tree.number_envs(DEFAULT_NUMBERED_ENVS)
         tree.number_sections()
+
+    if ignore_exercise_layout:
+        for node in tree.walk():
+            if node.name == "exercise":
+                node.children = [
+                    child
+                    for child in node.children
+                    if child.name not in WORKSHEET_LAYOUT_ENVS
+                ]
 
     return tree
 
@@ -246,6 +267,7 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
 
 def convert_file(filename, output_directory, *, 
                  base=False, tex=False, revealjs=False,beamer=False, handout=False, tex_handout=False, 
+                 worksheet=False, 
                  version="", package_zip=True,
                  image_base=None,
     ):
@@ -355,6 +377,43 @@ def convert_file(filename, output_directory, *,
         # Do/don't include tex in zip 
         # generated.append(output_file)
 
+    if worksheet:
+        tree = build_tree(
+            text,
+            omit_envs=["answer", "todo"],
+            number=False,
+            render_latex_fences=False,
+            ignore_exercise_layout=False,
+        )
+
+        for node in tree.walk():
+            node.children = [
+                child for child in node.children
+                if child.name != "newpage"
+                or (child.title or "").strip().lower() == "worksheet"
+            ]
+            
+        tree.children = [
+            node
+            for node in tree.walk()
+            if node.name == "exercise"
+        ]
+
+        resolve_local_image_paths(tree, image_base)
+
+        variant = version_str + "-worksheet"
+
+        output = tree.to_latex(
+            title=title,
+            author=author,
+            date=date,
+            beamer=False,
+        )
+
+        output_file = output_directory / f"{page_name}{variant}.tex"
+        output_file.write_text(output, encoding="utf-8")
+        tex_generated.append(output_file)
+
     if beamer:
         tree = build_tree(text, number=False, render_latex_fences=False)
         resolve_local_image_paths(tree,  image_base)
@@ -422,6 +481,7 @@ def main():
     parser.add_argument("--pdf-handout", action="store_true", help="Generate TeX handout")
     parser.add_argument("--beamer", action="store_true", help="Generate Beamer slides")
     parser.add_argument("--all", action="store_true", help="Generate all outputs")
+    parser.add_argument("--worksheet", action="store_true", help="Generate a printable worksheet of exercises")
     parser.add_argument(
         "--mkdocs-page-zip",
         dest="mkdocs_page_zip",
@@ -453,6 +513,7 @@ def main():
         "handout" : args.all or args.handout,
         "revealjs" : args.all or args.revealjs,   
         "tex" : args.all or args.tex or args.pdf,
+        "worksheet" : args.all or args.worksheet,
         "tex_handout" : args.all or args.pdf_handout ,
         "beamer" : args.all or args.beamer ,
         "version" : args.version,
