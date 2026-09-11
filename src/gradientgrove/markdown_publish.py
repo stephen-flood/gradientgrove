@@ -386,18 +386,26 @@ def convert_file(filename, output_directory, *,
             ignore_exercise_layout=False,
         )
 
-        for node in tree.walk():
-            node.children = [
-                child for child in node.children
-                if child.name != "newpage"
-                or (child.title or "").strip().lower() == "worksheet"
-            ]
-            
-        tree.children = [
+        exercises = [
             node
             for node in tree.walk()
             if node.name == "exercise"
         ]
+
+        tree.children = []
+
+        for exercise in exercises:
+            if (exercise.title or "").strip().lower() == "newpage":
+                tree.children.append(
+                    SyntaxTree(
+                        kind="admonition",
+                        name="newpage",
+                        tag="div",
+                    )
+                )
+                exercise.title = None
+
+            tree.children.append(exercise)
 
         resolve_local_image_paths(tree, image_base)
 
@@ -410,9 +418,34 @@ def convert_file(filename, output_directory, *,
             beamer=False,
         )
 
+        # Insert worksheet headers
+        output = output.replace(
+            r"\begin{document}",
+            rf"""
+            \usepackage{{fancyhdr}}
+            \pagestyle{{fancy}}
+            \fancyhf{{}}
+            \lhead{{Name: \rule{{2in}}{{0.4pt}} }}
+            %\chead{{{author}}}
+            \rhead{{{title}}}
+            \cfoot{{\thepage}}
+            \renewcommand{{\headrulewidth}}{{0pt}}
+            %\setlength{{\headheight}}{{2.5\baselineskip}} % to make fancyhdr not complain
+
+            \setlength{{\tabcolsep}}{{3em}} % for the horizontal padding
+            \renewcommand{{\arraystretch}}{{3}}% for the vertical padding
+
+            \begin{{document}}
+            \null
+            """,
+                1,
+            )
+
+
         output_file = output_directory / f"{page_name}{variant}.tex"
         output_file.write_text(output, encoding="utf-8")
         tex_generated.append(output_file)
+
 
     if beamer:
         tree = build_tree(text, number=False, render_latex_fences=False)

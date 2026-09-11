@@ -378,13 +378,15 @@ $dateline
 ARTICLE_HEADER_TEMPLATE = Template(r"""
 \documentclass{article}
 \usepackage{beamerarticle}
-\usepackage[margin=1in,top=0.5in,bottom=0.5in, paperwidth=8.5in, paperheight=11in]{geometry}
+%\usepackage[margin=1in,top=0.5in,bottom=0.5in, paperwidth=8.5in, paperheight=11in]{geometry}
+\usepackage[margin=1in, paperwidth=8.5in, paperheight=11in]{geometry}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric} 
 \usetikzlibrary{shadings}
 \usetikzlibrary{arrows,calc,decorations.markings}
 \usetikzlibrary{decorations.pathmorphing} 
 \usetikzlibrary{positioning,fit}
+\usepackage{forest}
 
 %%
 \tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]
@@ -428,7 +430,7 @@ ARTICLE_HEADER_TEMPLATE = Template(r"""
 \newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
 %\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\dotfill$\square$\par\medskip}
 %\newenvironment{answer}{\begin{adjustwidth}{1.5em}{0pt}\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\end{adjustwidth}\medskip}
-\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise.}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
+\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
 \setcounter{tocdepth}{1}
 %\AtEndEnvironment{Answer}{\dotfill$\square$}
 \usepackage{listings}

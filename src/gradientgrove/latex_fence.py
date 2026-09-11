@@ -51,6 +51,7 @@ WRAPPER = r"""
 
 \usetikzlibrary{graphs, graphdrawing}
 \usegdlibrary{trees}
+\usepackage{forest}
 
 %%
 \tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]
