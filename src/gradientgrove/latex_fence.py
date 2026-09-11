@@ -86,11 +86,39 @@ WRAPPER = r"""
 %%%% End: TikZ SPLINE 
 
 \usepackage{beamerarticle}
+\usetikzlibrary{overlay-beamer-styles}
 \begin{document}
 \noindent 
 %s
 \end{document}
 """.strip()
+
+
+BEAMER_WRAPPER = (
+    WRAPPER
+        .replace(
+            r"\documentclass[border=1pt]{standalone}",
+            r"\documentclass[beamer]{standalone}",
+            1,
+        )
+        .replace(
+            r"\usepackage{beamerarticle}",
+            "",
+            1,
+        )
+        .replace(
+            """\\begin{document}
+        \\noindent 
+        %s
+        \\end{document}""",
+                """\\begin{document}
+        \\begin{standaloneframe}[plain]
+        %s
+        \\end{standaloneframe}
+        \\end{document}""",
+            1,
+        )
+    )
 
 
 def _compile_to_svg(latex_body: str) -> bytes:
@@ -124,6 +152,49 @@ def _compile_to_svg(latex_body: str) -> bytes:
 
         return (td / "x.svg").read_bytes()
 
+
+def _compile_to_overlay_svgs(latex_body: str) -> list[bytes]:
+    """Special code to handle beamer-style multi-page output"""
+    latex_src = BEAMER_WRAPPER % latex_body
+
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        (td / "x.tex").write_text(latex_src, encoding="utf-8")
+
+        p = subprocess.run(
+            ["lualatex", "-halt-on-error", "-interaction=nonstopmode", "x.tex"],
+            cwd=td,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if p.returncode != 0:
+            raise RuntimeError(p.stdout)
+
+        p = subprocess.run(
+            [
+                "dvisvgm",
+                "--no-fonts",
+                "--pdf",
+                "--page=1-",
+                str(td / "x.pdf"),
+                "-o",
+                str(td / "x-%p.svg"),
+            ],
+            cwd=td,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        if p.returncode != 0:
+            raise RuntimeError(p.stdout)
+
+        svg_paths = sorted(
+            td.glob("x-*.svg"),
+            key=lambda p: int(p.stem.rsplit("-", 1)[1]),
+        )
+
+        return [p.read_bytes() for p in svg_paths]
 
 def latex_svg_fence(source, language, css_class, options, md, **kwargs):
     """Render a LaTeX/TikZ fenced block as an embedded SVG image.
@@ -233,4 +304,83 @@ def latex_cache_fence(source, language, css_class, options, md, **kwargs):
         )
 
     data_uri = "data:image/svg+xml;base64," + base64.b64encode(svg).decode("ascii")
-    return f'<img class="{html.escape(css_class)}" src="{data_uri}" alt="{html.escape(alt)}" />'
+
+    ## ORIGINAL: Embed a single svg image
+    # return f'<img class="{html.escape(css_class)}" src="{data_uri}" alt="{html.escape(alt)}" />'
+
+    ## NEW: handle latex that compiles to multiple pages (e.g. tikz from beamer)
+    static_img = (
+        f'<img class="{html.escape(css_class)} latex-static" '
+        f'src="{data_uri}" alt="{html.escape(alt)}" />'
+    )
+
+    # Compile/cache the Beamer overlay version separately.
+    overlay_hash = hashlib.sha256(
+        (BEAMER_WRAPPER + "\0" + source).encode("utf-8")
+    ).hexdigest()
+
+    def overlay_number(path):
+        return int(path.stem.rsplit("-", 1)[1])
+
+    overlay_paths = sorted(
+        cache_dir.glob(f"{overlay_hash}-*.svg"),
+        key=overlay_number,
+    )
+
+    try:
+        if overlay_paths:
+            overlay_svgs = [path.read_bytes() for path in overlay_paths]
+        else:
+            overlay_svgs = _compile_to_overlay_svgs(source)
+
+            for i, overlay_svg in enumerate(overlay_svgs, start=1):
+                path = cache_dir / f"{overlay_hash}-{i}.svg"
+                path.write_bytes(overlay_svg)
+
+    except Exception:
+        # If Beamer overlay compilation fails, retain today's behavior.
+        return static_img
+
+    # No overlays: retain today's behavior.
+    if len(overlay_svgs) <= 1:
+        return static_img
+
+    overlay_images = []
+
+    for i, overlay_svg in enumerate(overlay_svgs, start=1):
+        overlay_uri = (
+            "data:image/svg+xml;base64,"
+            + base64.b64encode(overlay_svg).decode("ascii")
+        )
+
+        classes = html.escape(css_class)
+        if i > 1:
+            classes += " fragment"
+
+        page_alt = html.escape(
+            f"{alt}, step {i} of {len(overlay_svgs)}"
+        )
+
+        overlay_images.append(
+            f'<img class="{classes}" '
+            f'src="{overlay_uri}" alt="{page_alt}" />'
+        )
+
+    return (
+        "<style>"
+        ".latex-overlays{display:none;}"
+        ".reveal .latex-static{display:none;}"
+        ".reveal .latex-overlays{display:grid;}"
+        ".reveal .latex-overlays>img{"
+        "grid-area:1/1;"
+        "margin:auto;"
+        "}"
+        ".reveal .latex-overlays>img.fragment{"
+        "background:var(--r-background-color,white);"
+        "}"
+        "</style>"
+        + static_img
+        + '<div class="latex-overlays">'
+        + "".join(overlay_images)
+        + "</div>"
+    )
