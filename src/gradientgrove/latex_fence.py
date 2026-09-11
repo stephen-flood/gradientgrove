@@ -93,32 +93,29 @@ WRAPPER = r"""
 \end{document}
 """.strip()
 
-
 BEAMER_WRAPPER = (
     WRAPPER
-        .replace(
-            r"\documentclass[border=1pt]{standalone}",
-            r"\documentclass[beamer]{standalone}",
-            1,
-        )
-        .replace(
-            r"\usepackage{beamerarticle}",
-            "",
-            1,
-        )
-        .replace(
-            """\\begin{document}
-        \\noindent 
-        %s
-        \\end{document}""",
-                """\\begin{document}
-        \\begin{standaloneframe}[plain]
-        %s
-        \\end{standaloneframe}
-        \\end{document}""",
-            1,
-        )
+    .replace(
+        r"\documentclass[border=1pt]{standalone}",
+        r"\documentclass[beamer]{standalone}",
+        1,
     )
+    .replace(
+        r"\usepackage{beamerarticle}",
+        "",
+        1,
+    )
+    .replace(
+        r"\begin{document}",
+        "\\begin{document}\n\\begin{standaloneframe}[plain]",
+        1,
+    )
+    .replace(
+        r"\end{document}",
+        "\\end{standaloneframe}\n\\end{document}",
+        1,
+    )
+)
 
 
 def _compile_to_svg(latex_body: str) -> bytes:
@@ -309,12 +306,15 @@ def latex_cache_fence(source, language, css_class, options, md, **kwargs):
     # return f'<img class="{html.escape(css_class)}" src="{data_uri}" alt="{html.escape(alt)}" />'
 
     ## NEW: handle latex that compiles to multiple pages (e.g. tikz from beamer)
-    static_img = (
-        f'<img class="{html.escape(css_class)} latex-static" '
-        f'src="{data_uri}" alt="{html.escape(alt)}" />'
+
+    # This is the ordinary image.
+    plain_img = (
+        f'<img class="{html.escape(css_class)}" '
+        f'src="{data_uri}" '
+        f'alt="{html.escape(alt)}" />'
     )
 
-    # Compile/cache the Beamer overlay version separately.
+    # Try compiling a Beamer version.
     overlay_hash = hashlib.sha256(
         (BEAMER_WRAPPER + "\0" + source).encode("utf-8")
     ).hexdigest()
@@ -329,22 +329,39 @@ def latex_cache_fence(source, language, css_class, options, md, **kwargs):
 
     try:
         if overlay_paths:
-            overlay_svgs = [path.read_bytes() for path in overlay_paths]
+            overlay_svgs = [
+                path.read_bytes()
+                for path in overlay_paths
+            ]
         else:
             overlay_svgs = _compile_to_overlay_svgs(source)
 
-            for i, overlay_svg in enumerate(overlay_svgs, start=1):
+            for i, overlay_svg in enumerate(
+                overlay_svgs,
+                start=1,
+            ):
                 path = cache_dir / f"{overlay_hash}-{i}.svg"
                 path.write_bytes(overlay_svg)
 
-    except Exception:
-        # If Beamer overlay compilation fails, retain today's behavior.
-        return static_img
+    except Exception as e:
+        print("BEAMER OVERLAY ERROR:")
+        print(e)
 
-    # No overlays: retain today's behavior.
+        # Beamer failed. Just use the normal image.
+        return plain_img
+
+    # One Beamer page means there are no overlays.
     if len(overlay_svgs) <= 1:
-        return static_img
+        return plain_img
 
+    # Only now do we create a static image that Reveal should hide.
+    static_img = (
+        f'<img class="{html.escape(css_class)} latex-static" '
+        f'src="{data_uri}" '
+        f'alt="{html.escape(alt)}" />'
+    )
+
+    # Build one image for each Beamer page.
     overlay_images = []
 
     for i, overlay_svg in enumerate(overlay_svgs, start=1):
@@ -354,6 +371,7 @@ def latex_cache_fence(source, language, css_class, options, md, **kwargs):
         )
 
         classes = html.escape(css_class)
+
         if i > 1:
             classes += " fragment"
 
@@ -363,24 +381,48 @@ def latex_cache_fence(source, language, css_class, options, md, **kwargs):
 
         overlay_images.append(
             f'<img class="{classes}" '
-            f'src="{overlay_uri}" alt="{page_alt}" />'
+            f'src="{overlay_uri}" '
+            f'alt="{page_alt}" />'
         )
 
+    #
+    # Scope all of the CSS to THIS type of wrapper.
+    #
+    # Normal HTML:
+    #     static image visible
+    #     overlay pages hidden
+    #
+    # Reveal:
+    #     static image hidden
+    #     overlay pages visible
     return (
         "<style>"
-        ".latex-overlays{display:none;}"
-        ".reveal .latex-static{display:none;}"
-        ".reveal .latex-overlays{display:grid;}"
-        ".reveal .latex-overlays>img{"
+        ".latex-overlay-wrapper .latex-overlays{"
+        "display:none;"
+        "}"
+
+        ".reveal .latex-overlay-wrapper .latex-static{"
+        "display:none !important;"
+        "}"
+
+        ".reveal .latex-overlay-wrapper .latex-overlays{"
+        "display:grid;"
+        "}"
+
+        ".reveal .latex-overlay-wrapper .latex-overlays img{"
         "grid-area:1/1;"
         "margin:auto;"
         "}"
-        ".reveal .latex-overlays>img.fragment{"
+
+        ".reveal .latex-overlay-wrapper .latex-overlays img.fragment{"
         "background:var(--r-background-color,white);"
         "}"
         "</style>"
+
+        '<div class="latex-overlay-wrapper">'
         + static_img
         + '<div class="latex-overlays">'
         + "".join(overlay_images)
+        + "</div>"
         + "</div>"
     )
