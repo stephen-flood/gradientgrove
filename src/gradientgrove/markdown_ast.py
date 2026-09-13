@@ -306,6 +306,8 @@ BEAMER_HEADER_TEMPLATE = Template(r"""
 \usetikzlibrary{arrows,calc,decorations.markings}
 \usetikzlibrary{decorations.pathmorphing} 
 \usetikzlibrary{positioning,fit}
+\usetikzlibrary{overlay-beamer-styles}
+\usepackage{forest}
 
 %%
 \tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]
@@ -387,6 +389,7 @@ ARTICLE_HEADER_TEMPLATE = Template(r"""
 \usetikzlibrary{decorations.pathmorphing} 
 \usetikzlibrary{positioning,fit}
 \usepackage{forest}
+\usetikzlibrary{overlay-beamer-styles}
 
 %%
 \tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]

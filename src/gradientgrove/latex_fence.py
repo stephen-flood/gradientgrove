@@ -97,7 +97,11 @@ BEAMER_WRAPPER = (
     WRAPPER
     .replace(
         r"\documentclass[border=1pt]{standalone}",
-        r"\documentclass[beamer]{standalone}",
+        (
+            r"\def\pgfsysdriver{pgfsys-dvisvgm.def}"
+            "\n"
+            r"\documentclass[beamer]{standalone}"
+        ),
         1,
     )
     .replace(
@@ -107,16 +111,25 @@ BEAMER_WRAPPER = (
     )
     .replace(
         r"\begin{document}",
-        "\\begin{document}\n\\begin{standaloneframe}[plain]",
+        (
+            r"\setbeamercolor{background canvas}{bg=}"
+            "\n"
+            r"\begin{document}"
+            "\n"
+            r"\begin{standaloneframe}[plain]"
+        ),
         1,
     )
     .replace(
         r"\end{document}",
-        "\\end{standaloneframe}\n\\end{document}",
+        (
+            r"\end{standaloneframe}"
+            "\n"
+            r"\end{document}"
+        ),
         1,
     )
 )
-
 
 def _compile_to_svg(latex_body: str) -> bytes:
     latex_src = WRAPPER % latex_body
@@ -158,8 +171,21 @@ def _compile_to_overlay_svgs(latex_body: str) -> list[bytes]:
         td = Path(td)
         (td / "x.tex").write_text(latex_src, encoding="utf-8")
 
+        # p = subprocess.run(
+        #     ["lualatex", "-halt-on-error", "-interaction=nonstopmode", "x.tex"],
+        #     cwd=td,
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.STDOUT,
+        #     text=True,
+        # )
         p = subprocess.run(
-            ["lualatex", "-halt-on-error", "-interaction=nonstopmode", "x.tex"],
+            [
+                "lualatex",
+                "--output-format=dvi",
+                "-halt-on-error",
+                "-interaction=nonstopmode",
+                "x.tex",
+            ],
             cwd=td,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -168,13 +194,27 @@ def _compile_to_overlay_svgs(latex_body: str) -> list[bytes]:
         if p.returncode != 0:
             raise RuntimeError(p.stdout)
 
+        # p = subprocess.run(
+        #     [
+        #         "dvisvgm",
+        #         "--no-fonts",
+        #         "--pdf",
+        #         "--page=1-",
+        #         str(td / "x.pdf"),
+        #         "-o",
+        #         str(td / "x-%p.svg"),
+        #     ],
+        #     cwd=td,
+        #     stdout=subprocess.PIPE,
+        #     stderr=subprocess.STDOUT,
+        #     text=True,
+        # )
         p = subprocess.run(
             [
                 "dvisvgm",
                 "--no-fonts",
-                "--pdf",
                 "--page=1-",
-                str(td / "x.pdf"),
+                str(td / "x.dvi"),
                 "-o",
                 str(td / "x-%p.svg"),
             ],

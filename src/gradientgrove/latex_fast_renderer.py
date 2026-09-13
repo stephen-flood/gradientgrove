@@ -150,7 +150,7 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             if stretch.lower() in {"", "vfillbox"}:
                 stretch = "1"
             return (
-                "\\n\\noindent\\rule[-1em]{.4pt}{1em}"
+                "\n\\noindent\\rule[-1em]{.4pt}{1em}"
                 "\\hrulefill\\rule[-1em]{.4pt}{1em}\\par"
                 f"\\vspace{{\\stretch{{{stretch}}}}}\\par"
                 "\\noindent\\rule{.4pt}{1em}"
