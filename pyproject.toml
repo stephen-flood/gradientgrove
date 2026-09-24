@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gradientgrove"
-version = "0.1.7"         #   dev versions with "0.1.5.dev1"
+version = "0.1.8.dev2"         #   dev versions with "0.1.5.dev1"
 authors = [
     {name="Stephen Flood", email="stephen.flood@bridgew.edu"}
 ]
@@ -33,3 +33,4 @@ Issues = "https://gradientgrove.com"
 [project.scripts]
 gradientgrove-publish = "gradientgrove.markdown_publish:main"
 gradientgrove-latex-to-markdown = "gradientgrove.markdown_ast:latex_to_markdown_main"
+gradientgrove-render-activity = "gradientgrove.render_html_activity:main"

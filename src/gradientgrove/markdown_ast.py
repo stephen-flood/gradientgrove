@@ -1229,6 +1229,10 @@ class SyntaxTree:
                 labels[node.name],
             }
 
+            # Do not use "newpage" as an exercise title.  It is formatting information
+            if node.name == "exercise":
+                default_titles.add("newpage")
+
             if node.title in default_titles:
                 node.title = f"{labels[node.name]} {counters[node.name]}"
 

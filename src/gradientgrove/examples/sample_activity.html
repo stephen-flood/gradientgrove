@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Lab Night</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #f7f7f7;
+    color: #222;
+}
+
+nav.top {
+    padding: 1rem;
+    background: white;
+    border-bottom: 1px solid #ddd;
+}
+
+nav.top a {
+    margin-right: 1rem;
+}
+
+main {
+    max-width: 1400px;
+    margin: auto;
+    padding: 1rem;
+}
+
+.landing {
+    max-width: 800px;
+}
+
+.activity iframe {
+    width: 100%;
+    height: 65vh;
+    border: 0;
+    background: white;
+}
+
+.exercise {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 1px solid #ddd;
+}
+
+.exercise-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
+
+.activity-list a {
+    display: block;
+    margin: .5rem 0;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    background: white;
+}
+
+.admonition,
+details {
+    margin: 1rem 0;
+    padding: .75rem 1rem;
+    border-left: 4px solid #888;
+    background: #f5f5f5;
+}
+
+summary,
+.admonition-title {
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<nav class="top">
+<a href="?">Home</a>
+<a href="?activity=1&step=1">1. Separating Two Groups</a>
+<a href="?activity=2&step=1">2. A Harder Dataset</a>
+</nav>
+
+<main>
+
+<section id="landing" class="landing">
+<h1 id="neural-networks">Neural Networks</h1>
+<p>Welcome to Open Lab Night!</p>
+<p>Tonight you'll experiment with a neural network and see how changing
+its structure changes what it can learn.</p>
+<p>Pick an activity below to get started.</p>
+
+
+<h2>Activities</h2>
+<div class="activity-list">
+<a href="?activity=1&step=1">1. Separating Two Groups</a>
+<a href="?activity=2&step=1">2. A Harder Dataset</a>
+</div>
+</section>
+
+<section class="activity" id="activity-1" hidden><h1>1. Separating Two Groups</h1><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
+<section class="exercise" id="activity-1-step-1" hidden><h2>Start training</h2><p>Press the play button.</p>
+<div class="exercise-nav"><span>Step 1 of 3</span><button onclick="showStep(2)">Next →</button></div></section><section class="exercise" id="activity-1-step-2" hidden><h2>Change the learning rate</h2><p>Try increasing the learning rate.</p>
+<details class="note">
+<summary>Hint</summary><p>Try 0.1.</p>
+</details>
+<div class="exercise-nav"><button onclick="showStep(1)">← Back</button><span>Step 2 of 3</span><button onclick="showStep(3)">Next →</button></div></section><section class="exercise" id="activity-1-step-3" hidden><h2>Challenge</h2><p>How quickly can you train the network?</p>
+<div class="exercise-nav"><button onclick="showStep(2)">← Back</button><span>Step 3 of 3</span></div></section></section>
+<section class="activity" id="activity-2" hidden><h1>2. A Harder Dataset</h1><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
+<section class="exercise" id="activity-2-step-1" hidden><h2>Choose the data</h2><p>Select the spiral dataset.</p>
+<div class="exercise-nav"><span>Step 1 of 2</span><button onclick="showStep(2)">Next →</button></div></section><section class="exercise" id="activity-2-step-2" hidden><h2>Add a layer</h2><p>Try adding another hidden layer.</p>
+<div class="exercise-nav"><button onclick="showStep(1)">← Back</button><span>Step 2 of 2</span></div></section></section>
+
+</main>
+
+<script>
+const activity = new URLSearchParams(location.search).get("activity");
+const page = document.querySelector(`#activity-${activity}`);
+
+function showStep(n) {
+    page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
+    page.querySelector(`#activity-${activity}-step-${n}`).hidden = false;
+
+    const url = new URL(location);
+    url.searchParams.set("exercise", n);
+    history.replaceState(null, "", url);
+}
+
+if (activity) {
+    document.querySelector("#landing").hidden = true;
+    page.hidden = false;
+
+    const step = Number(
+        new URLSearchParams(location.search).get("exercise") || 1
+    );
+
+    showStep(step);
+}
+</script>
+
+</body>
+</html>
