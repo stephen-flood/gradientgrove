@@ -293,9 +293,22 @@ def render(source, title, theme=None, exercise_position="bottom"):
             #     f'</section>'
             # )
             
+            # steps_html.append(
+            #     f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
+            #     f'<h2>{html.escape(step_title)}</h2>'
+            #     f'{step_body}'
+            #     f'<div class="exercise-nav">'
+            #     f'{prev_button}'
+            #     f'<span>Step {j} of {len(steps)}</span>'
+            #     f'{next_button}'
+            #     f'</div>'
+            #     f'</section>'
+            # )
+
             steps_html.append(
                 f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
-                f'<h2>{html.escape(step_title)}</h2>'
+                # f'<h1 class="activity-title">{html.escape(activity_title)}</h1>'
+                f'<h2 class="exercise-title">{html.escape(step_title)}</h2>'
                 f'{step_body}'
                 f'<div class="exercise-nav">'
                 f'{prev_button}'
@@ -304,7 +317,7 @@ def render(source, title, theme=None, exercise_position="bottom"):
                 f'</div>'
                 f'</section>'
             )
-
+            
         # Non-step content stays visible throughout the activity.
         activity_body = "".join(
             ET.tostring(
@@ -350,6 +363,30 @@ def render(source, title, theme=None, exercise_position="bottom"):
         #     f'</section>'
         # )
 
+        # exercise_body = "".join(steps_html)
+
+        # activity_content = (
+        #     f'<div class="activity-content">'
+        #     f'{activity_body}'
+        #     f'</div>'
+        # )
+
+        # if exercise_position == "top":
+        #     stack = exercise_body + activity_content
+        # else:
+        #     stack = activity_content + exercise_body
+
+        # activity_html.append(
+        #     f'<section class="activity" id="activity-{i}" hidden>'
+        #     f'{prev_activity}'
+        #     f'{next_activity}'
+        #     # f'<h1>{html.escape(activity_title)}</h1>'
+        #     f'<div class="activity-stack">'
+        #     f'{stack}'
+        #     f'</div>'
+        #     f'</section>'
+        # )            
+
         exercise_body = "".join(steps_html)
 
         activity_content = (
@@ -358,21 +395,31 @@ def render(source, title, theme=None, exercise_position="bottom"):
             f'</div>'
         )
 
-        if exercise_position == "top":
-            stack = exercise_body + activity_content
+        if steps:
+            exercise_group = (
+                f'<div class="exercise-group">'
+                f'{exercise_body}'
+                f'</div>'
+            )
+
+            if exercise_position == "top":
+                stack = exercise_group + activity_content
+            else:
+                stack = activity_content + exercise_group
+
         else:
-            stack = activity_content + exercise_body
+            stack = activity_content
 
         activity_html.append(
             f'<section class="activity" id="activity-{i}" hidden>'
             f'{prev_activity}'
             f'{next_activity}'
-            f'<h1>{html.escape(activity_title)}</h1>'
             f'<div class="activity-stack">'
+            f'<h1 class="activity-title">{html.escape(activity_title)}</h1>'
             f'{stack}'
             f'</div>'
             f'</section>'
-        )            
+        )
 
     css_path = Path(__file__).resolve().parent / "activity.css"
     default_css = css_path.read_text(encoding="utf-8")  

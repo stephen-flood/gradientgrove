@@ -268,9 +268,6 @@ main {
     margin: 0;
 }
 
-.activity > h1 {
-    display: none;
-}
 
 /* Coordinated activity stack */
 
@@ -665,4 +662,52 @@ td {
 
         border-width: 3px;
     }
+}
+/* Activity title */
+
+/* .activity-title {
+    margin: 0 0 0.5rem;
+
+    color: var(--gg-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+} */
+
+.activity-title {
+    margin: 0 0 0.5rem;
+
+    color: var(--gg-primary);
+    font-size: 2rem;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+}
+
+/* Group containing the activity title + exercises */
+
+.exercise-group {
+    width: 100%;
+}
+
+
+/* Exercise title */
+
+.exercise > h2 {
+    margin: 0 0 0.8rem;
+
+    /* color: var(--gg-muted); */
+    /* font-size: 1.05rem; */
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+}
+
+
+/* Activity with no exercises */
+
+.activity-stack > .activity-title {
+    margin-bottom: 1rem;
 }
