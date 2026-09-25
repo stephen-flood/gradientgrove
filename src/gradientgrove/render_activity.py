@@ -170,10 +170,16 @@ def render(source, title, theme=None, exercise_position="bottom"):
         #     f'<a href="?activity={i}&step=1">'
         #     f'{html.escape(activity_title)}</a>'
         # )
-        link = (
-            f'<a href="?activity={i}&exercise=1" data-activity="{i}">'
-            f'{html.escape(activity_title)}</a>'
-        )
+
+        # Don't provide navigation for missing titles
+        if activity.title != "Activity":
+            link = (
+                f'<a href="?activity={i}&exercise=1" data-activity="{i}">'
+                f'{html.escape(activity_title)}</a>'
+            )
+        else:
+            print("Warning: No title for activity, not added to navigation.")
+            link = ""
 
         # prev_activity = (
         #     f'<a class="activity-arrow activity-arrow-left" '
@@ -214,19 +220,39 @@ def render(source, title, theme=None, exercise_position="bottom"):
         ]
 
         if not steps:
-            raise ValueError(
-                f"{activity_title!r} has no !!! step environments."
-            )
+            # raise ValueError(
+            #     f"{activity_title!r} has no !!! step environments."
+            # )
+            print(f"Warning: {activity_title!r} has no exercise/step environments.")
 
         steps_html = []
 
         for j, step in enumerate(steps, start=1):
             step_title = step.title or f"Step {j}"
             
-            prev_button = (
-                f'<button onclick="showStep({j - 1})">Back</button>'
-                if j > 1 else ""
-            )
+            # prev_button = (
+            #     f'<button onclick="showStep({j - 1})">Back</button>'
+            #     if j > 1 else ""
+            # )
+
+            if j > 1:
+                prev_button = (
+                    f'<button onclick="showStep({j - 1})">Back</button>'
+                )
+            elif i > 1:
+                previous_steps = [
+                    child
+                    for child in activities[i - 2].children
+                    if child.name == "exercise"
+                ]
+
+                prev_button = (
+                    f'<a class="previous-activity-button" '
+                    f'href="?activity={i - 1}&exercise={len(previous_steps)}">'
+                    f'Previous Activity</a>'
+                )
+            else:
+                prev_button = ""
 
             # next_button = (
             #     f'<button onclick="showStep({j + 1})">Next →</button>'
@@ -308,21 +334,45 @@ def render(source, title, theme=None, exercise_position="bottom"):
         #     f'</section>'
         # )
 
+        # exercise_body = "".join(steps_html)
+
+        # if exercise_position == "top":
+        #     content = exercise_body + activity_body
+        # else:
+        #     content = activity_body + exercise_body
+
+        # activity_html.append(
+        #     f'<section class="activity" id="activity-{i}" hidden>'
+        #     f'{prev_activity}'
+        #     f'{next_activity}'
+        #     f'<h1>{html.escape(activity_title)}</h1>'
+        #     f'{content}'
+        #     f'</section>'
+        # )
+
         exercise_body = "".join(steps_html)
 
+        activity_content = (
+            f'<div class="activity-content">'
+            f'{activity_body}'
+            f'</div>'
+        )
+
         if exercise_position == "top":
-            content = exercise_body + activity_body
+            stack = exercise_body + activity_content
         else:
-            content = activity_body + exercise_body
+            stack = activity_content + exercise_body
 
         activity_html.append(
             f'<section class="activity" id="activity-{i}" hidden>'
             f'{prev_activity}'
             f'{next_activity}'
             f'<h1>{html.escape(activity_title)}</h1>'
-            f'{content}'
+            f'<div class="activity-stack">'
+            f'{stack}'
+            f'</div>'
             f'</section>'
-        )
+        )            
 
     css_path = Path(__file__).resolve().parent / "activity.css"
     default_css = css_path.read_text(encoding="utf-8")  

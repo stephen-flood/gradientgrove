@@ -15,15 +15,17 @@
     --gg-accent: #7a6f9b;
     --gg-secondary: #5f8194;
 
-    --gg-border: #d7dcd8;
     --gg-muted: #68736f;
+    --gg-border: #d7dcd8;
 
     --gg-radius: 16px;
     --gg-shadow: 0 8px 28px rgb(0 0 0 / 0.08);
 }
 
 
-/* Base */
+/* ---------------------------------------------------------
+   Base
+   --------------------------------------------------------- */
 
 * {
     box-sizing: border-box;
@@ -50,12 +52,12 @@ body {
     background:
         radial-gradient(
             circle at 10% 0%,
-            color-mix(in srgb, var(--gg-accent) 10%, transparent),
+            color-mix(in srgb, var(--gg-accent) 5%, transparent),
             transparent 28rem
         ),
         radial-gradient(
             circle at 90% 5%,
-            color-mix(in srgb, var(--gg-secondary) 9%, transparent),
+            color-mix(in srgb, var(--gg-secondary) 5%, transparent),
             transparent 30rem
         ),
         var(--gg-bg);
@@ -93,7 +95,9 @@ img {
 }
 
 
-/* Top navigation */
+/* ---------------------------------------------------------
+   Top navigation
+   --------------------------------------------------------- */
 
 nav.top {
     position: sticky;
@@ -108,11 +112,12 @@ nav.top {
     width: 100%;
     padding: 0.75rem 1rem;
 
-    background: color-mix(
-        in srgb,
-        var(--gg-paper) 94%,
-        transparent
-    );
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-paper) 94%,
+            transparent
+        );
 
     border-bottom: 1px solid var(--gg-border);
 
@@ -124,6 +129,7 @@ nav.top a {
 
     color: var(--gg-text);
     text-decoration: none;
+
     font-size: 0.95rem;
     font-weight: 650;
 
@@ -131,6 +137,7 @@ nav.top a {
 
     transition:
         background 0.15s ease,
+        color 0.15s ease,
         transform 0.15s ease;
 }
 
@@ -139,27 +146,37 @@ nav.top a:first-child {
     background: var(--gg-primary);
 }
 
-nav.top a:hover {
-    background: color-mix(
-        in srgb,
-        var(--gg-primary) 10%,
-        transparent
-    );
+nav.top a:hover,
+nav.top a.active {
+    color: var(--gg-primary);
 
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-primary) 10%,
+            transparent
+        );
+}
+
+nav.top a:hover {
     transform: translateY(-1px);
 }
 
 nav.top a:first-child:hover {
     color: white;
-    background: color-mix(
-        in srgb,
-        var(--gg-primary) 85%,
-        black
-    );
+
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-primary) 85%,
+            black
+        );
 }
 
 
-/* Main layout */
+/* ---------------------------------------------------------
+   Main layout
+   --------------------------------------------------------- */
 
 main {
     width: 100%;
@@ -168,7 +185,9 @@ main {
 }
 
 
-/* Landing page */
+/* ---------------------------------------------------------
+   Landing page
+   --------------------------------------------------------- */
 
 .landing {
     width: min(900px, 100%);
@@ -197,13 +216,18 @@ main {
 }
 
 
-/* Activity list */
+/* ---------------------------------------------------------
+   Activity cards on landing page
+   --------------------------------------------------------- */
 
 .activity-list {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+        repeat(
+            auto-fit,
+            minmax(min(240px, 100%), 1fr)
+        );
 
     gap: 1rem;
 
@@ -223,6 +247,7 @@ main {
 
     color: var(--gg-text);
     text-decoration: none;
+
     font-size: 1.05rem;
     font-weight: 700;
     line-height: 1.3;
@@ -272,47 +297,60 @@ main {
 }
 
 
-/* Activity page */
+/* ---------------------------------------------------------
+   Activity page
+   --------------------------------------------------------- */
 
 .activity {
     width: 100%;
     margin: 0;
 }
 
+/* Activity name is already visible in the top navigation. */
+
 .activity > h1 {
-    width: min(1200px, 100%);
-    margin: 0 auto 1.25rem;
+    display: none;
 }
 
-.activity > p:not(:has(iframe)) {
-    width: min(900px, 100%);
-    margin-left: auto;
-    margin-right: auto;
+
+/* ---------------------------------------------------------
+   Activity stack
+   --------------------------------------------------------- */
+
+.activity-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+
+    width: min(100%, 1000px);
+
+    margin: 0 auto;
 }
 
+.activity-content {
+    width: 100%;
+}
+
+
+/* ---------------------------------------------------------
+   Interactive iframe
+   --------------------------------------------------------- */
 
 /*
- * Python-Markdown wraps a raw iframe in <p>.
- * That paragraph must remain full width.
+ * Python-Markdown wraps raw HTML in a paragraph.
+ *
+ * This paragraph is the visible viewport. It intentionally
+ * remains shorter than the iframe so the user can scroll down
+ * to attribution / citation links when desired.
  */
 
-.activity > p:has(iframe) {
+.activity-content > p:has(iframe) {
     width: 100%;
-    max-width: none;
-
-    margin: 1rem 0 0;
-}
-
-
-/* Interactive iframe */
-
-.activity iframe {
-    display: block;
-
-    width: 100% !important;
-    max-width: none;
+    height: 700px;
 
     margin: 0;
+
+    overflow: auto;
 
     background: white;
 
@@ -322,15 +360,44 @@ main {
     box-shadow: var(--gg-shadow);
 }
 
+.activity-content iframe {
+    display: block;
 
-/* Exercise card */
+    /*
+     * The Playground is rendered larger and then scaled down.
+     *
+     * 100 / .85 = 117.65
+     */
+    width: 117.65% !important;
+    height: 1030px;
+
+    margin: 0;
+
+    border: 0;
+
+    transform: scale(0.85);
+    transform-origin: top left;
+}
+
+
+/* Other persistent activity content */
+
+.activity-content > :not(p:has(iframe)) {
+    width: 100%;
+    max-width: none;
+}
+
+
+/* ---------------------------------------------------------
+   Exercise card
+   --------------------------------------------------------- */
 
 .exercise {
     position: relative;
 
-    width: min(950px, 100%);
+    width: 100%;
+    margin: 0;
 
-    margin: 1.5rem auto 0;
     padding: 1.5rem;
 
     overflow: hidden;
@@ -351,10 +418,11 @@ main {
 
     width: 5px;
 
-    background: linear-gradient(
-        var(--gg-accent),
-        var(--gg-secondary)
-    );
+    background:
+        linear-gradient(
+            var(--gg-accent),
+            var(--gg-secondary)
+        );
 }
 
 .exercise > h2 {
@@ -362,11 +430,16 @@ main {
 }
 
 
-/* Exercise navigation */
+/* ---------------------------------------------------------
+   Exercise navigation
+   --------------------------------------------------------- */
 
 .exercise-nav {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+
+    grid-template-columns:
+        1fr auto 1fr;
+
     align-items: center;
     gap: 1rem;
 
@@ -383,37 +456,45 @@ main {
     justify-self: start;
 }
 
-.exercise-nav button:last-child {
+.exercise-nav button:last-child,
+.next-activity-button {
     justify-self: end;
 }
 
-button {
+button,
+.next-activity-button {
     padding: 0.6rem 1rem;
 
     font: inherit;
     font-weight: 700;
 
     color: white;
+    text-decoration: none;
+
     background: var(--gg-primary);
 
     border: 0;
     border-radius: 999px;
 
-    cursor: pointer;
-
     box-shadow: 0 2px 5px rgb(0 0 0 / 0.12);
+
+    cursor: pointer;
 
     transition:
         background 0.15s ease,
         transform 0.15s ease;
 }
 
-button:hover {
-    background: color-mix(
-        in srgb,
-        var(--gg-primary) 85%,
-        black
-    );
+button:hover,
+.next-activity-button:hover {
+    color: white;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-primary) 85%,
+            black
+        );
 
     transform: translateY(-1px);
 }
@@ -423,270 +504,9 @@ button:active {
 }
 
 
-/* Admonitions and collapsible hints */
-
-.admonition,
-details {
-    margin: 1rem 0;
-    padding: 0.9rem 1rem;
-
-    background: color-mix(
-        in srgb,
-        var(--gg-secondary) 9%,
-        var(--gg-paper)
-    );
-
-    border: 1px solid var(--gg-border);
-    border-left: 5px solid var(--gg-secondary);
-    border-radius: 10px;
-}
-
-.admonition.note,
-details.note {
-    background: color-mix(
-        in srgb,
-        var(--gg-accent) 10%,
-        var(--gg-paper)
-    );
-
-    border-left-color: var(--gg-accent);
-}
-
-.admonition-title {
-    margin-bottom: 0.35rem;
-    font-weight: 700;
-}
-
-summary {
-    font-weight: 700;
-    cursor: pointer;
-}
-
-details[open] summary {
-    margin-bottom: 0.6rem;
-}
-
-
-/* Other Markdown */
-
-blockquote {
-    margin-left: 0;
-    padding-left: 1rem;
-
-    color: var(--gg-muted);
-
-    border-left: 4px solid var(--gg-accent);
-}
-
-code {
-    padding: 0.1em 0.3em;
-
-    background: color-mix(
-        in srgb,
-        var(--gg-text) 7%,
-        transparent
-    );
-
-    border-radius: 0.3em;
-}
-
-hr {
-    margin: 2rem 0;
-
-    border: 0;
-    border-top: 1px solid var(--gg-border);
-}
-
-table {
-    border-collapse: collapse;
-}
-
-th,
-td {
-    padding: 0.5rem 0.7rem;
-    border-bottom: 1px solid var(--gg-border);
-}
-
-
-/* Small screens */
-
-@media (max-width: 700px) {
-    body {
-        font-size: 16px;
-    }
-
-    main {
-        padding: 1.25rem 0.5rem 3rem;
-    }
-
-    h1 {
-        font-size: 2rem;
-    }
-
-    .exercise {
-        padding: 1.2rem;
-        border-radius: 12px;
-    }
-
-    .exercise-nav {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .exercise-nav span {
-        grid-column: 1 / -1;
-        grid-row: 1;
-
-        text-align: center;
-    }
-
-    .exercise-nav button {
-        grid-row: 2;
-    }
-}
-
-.activity > p:has(iframe) {
-    width: min(100%, 1000px);
-    height: 600px;
-
-    margin: 0 auto;
-    overflow: auto;
-
-    background: white;
-    border: 1px solid var(--gg-border);
-    border-radius: var(--gg-radius);
-    box-shadow: var(--gg-shadow);
-}
-
-.activity iframe {
-    display: block;
-
-    width: 117.65% !important;
-    height: 1030px;
-
-    border: 0;
-
-    transform: scale(0.85);
-    transform-origin: top left;
-}
-
-.activity > h1 {
-    display: none;
-}
-
-
-nav.top a.active {
-    background: color-mix(
-        in srgb,
-        var(--gg-primary) 10%,
-        transparent
-    );
-
-    color: var(--gg-primary);
-}
-
-
-.activity-arrow {
-    position: fixed;
-    top: 50%;
-    z-index: 50;
-
-    display: grid;
-    place-items: center;
-
-    width: 5.5rem;
-    height: 5.5rem;
-
-    color: var(--gg-primary);
-    text-decoration: none;
-    font-size: 3.6rem;
-    font-weight: 700;
-    line-height: 1;
-
-    background: color-mix(
-        in srgb,
-        var(--gg-paper) 94%,
-        transparent
-    );
-
-    border: 1px solid var(--gg-border);
-    border-radius: 50%;
-
-    box-shadow: var(--gg-shadow);
-
-    transform: translateY(-50%);
-
-    backdrop-filter: blur(8px);
-
-    transition:
-        background 0.15s ease,
-        transform 0.15s ease;
-}
-
-.activity-arrow:hover {
-    color: white;
-    background: var(--gg-primary);
-
-    transform:
-        translateY(-50%)
-        scale(1.08);
-}
-
-.activity-arrow-left {
-    left: 1.25rem;
-}
-
-.activity-arrow-right {
-    right: 1.25rem;
-}
-
-@media (max-width: 700px) {
-    .activity-arrow {
-        width: 4rem;
-        height: 4rem;
-        font-size: 2.6rem;
-    }
-
-    .activity-arrow-left {
-        left: 0.4rem;
-    }
-
-    .activity-arrow-right {
-        right: 0.4rem;
-    }
-}
-
-
-.next-activity-button {
-    justify-self: end;
-
-    padding: 0.6rem 1rem;
-
-    color: white;
-    text-decoration: none;
-    font-weight: 700;
-
-    background: var(--gg-primary);
-
-    border-radius: 999px;
-
-    box-shadow: 0 2px 5px rgb(0 0 0 / 0.12);
-
-    transition:
-        background 0.15s ease,
-        transform 0.15s ease;
-}
-
-.next-activity-button:hover {
-    color: white;
-
-    background: color-mix(
-        in srgb,
-        var(--gg-primary) 85%,
-        black
-    );
-
-    transform: translateY(-1px);
-}
+/* ---------------------------------------------------------
+   Previous / next activity controls
+   --------------------------------------------------------- */
 
 .activity-arrow {
     position: fixed;
@@ -700,15 +520,18 @@ nav.top a.active {
     height: 7rem;
 
     color: var(--gg-primary);
-    background: color-mix(
-        in srgb,
-        var(--gg-paper) 92%,
-        transparent
-    );
+
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-paper) 92%,
+            transparent
+        );
 
     border: 1px solid var(--gg-border);
 
-    box-shadow: 0 4px 18px rgb(0 0 0 / 0.08);
+    box-shadow:
+        0 4px 18px rgb(0 0 0 / 0.08);
 
     transform: translateY(-50%);
 
@@ -740,8 +563,8 @@ nav.top a.active {
 }
 
 .activity-arrow-left::before {
-    transform: rotate(-135deg);
     margin-left: 0.4rem;
+    transform: rotate(-135deg);
 }
 
 .activity-arrow-right {
@@ -752,14 +575,164 @@ nav.top a.active {
 }
 
 .activity-arrow-right::before {
-    transform: rotate(45deg);
     margin-right: 0.4rem;
+    transform: rotate(45deg);
 }
 
 .activity-arrow:hover {
     color: white;
     background: var(--gg-primary);
+
     opacity: 1;
+}
+
+
+/* ---------------------------------------------------------
+   Admonitions and hints
+   --------------------------------------------------------- */
+
+.admonition,
+details {
+    margin: 1rem 0;
+    padding: 0.9rem 1rem;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-secondary) 9%,
+            var(--gg-paper)
+        );
+
+    border: 1px solid var(--gg-border);
+    border-left: 5px solid var(--gg-secondary);
+    border-radius: 10px;
+}
+
+.admonition.note,
+details.note {
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-accent) 9%,
+            var(--gg-paper)
+        );
+
+    border-left-color: var(--gg-accent);
+}
+
+.admonition-title {
+    margin-bottom: 0.35rem;
+    font-weight: 700;
+}
+
+summary {
+    font-weight: 700;
+    cursor: pointer;
+}
+
+details[open] summary {
+    margin-bottom: 0.6rem;
+}
+
+
+/* ---------------------------------------------------------
+   Other Markdown
+   --------------------------------------------------------- */
+
+blockquote {
+    margin-left: 0;
+    padding-left: 1rem;
+
+    color: var(--gg-muted);
+
+    border-left: 4px solid var(--gg-accent);
+}
+
+code {
+    padding: 0.1em 0.3em;
+
+    background:
+        color-mix(
+            in srgb,
+            var(--gg-text) 7%,
+            transparent
+        );
+
+    border-radius: 0.3em;
+}
+
+hr {
+    margin: 2rem 0;
+
+    border: 0;
+    border-top: 1px solid var(--gg-border);
+}
+
+table {
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 0.5rem 0.7rem;
+
+    border-bottom: 1px solid var(--gg-border);
+}
+
+
+/* ---------------------------------------------------------
+   Small screens
+   --------------------------------------------------------- */
+
+@media (max-width: 700px) {
+    body {
+        font-size: 16px;
+    }
+
+    main {
+        padding: 1.25rem 0.5rem 3rem;
+    }
+
+    .activity-stack {
+        gap: 0.6rem;
+    }
+
+    .activity-content > p:has(iframe) {
+        height: 70vh;
+    }
+
+    .exercise {
+        padding: 1.2rem;
+        border-radius: 12px;
+    }
+
+    .exercise-nav {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .exercise-nav span {
+        grid-column: 1 / -1;
+        grid-row: 1;
+
+        text-align: center;
+    }
+
+    .exercise-nav button,
+    .next-activity-button {
+        grid-row: 2;
+    }
+
+    .activity-arrow {
+        width: 2.8rem;
+        height: 5rem;
+    }
+
+    .activity-arrow::before {
+        width: 0.9rem;
+        height: 0.9rem;
+
+        border-width: 3px;
+    }
 }
 
 :root { --gg-bg: #f8f8f5; --gg-paper: #ffffff; --gg-text: #303338; --gg-primary: #55567a; --gg-accent: #a96f4e; --gg-secondary: #66818f; }
@@ -791,18 +764,18 @@ its structure changes what it can learn.</p>
 </div>
 </section>
 
-<section class="activity" id="activity-1" hidden><a class="activity-arrow activity-arrow-right" href="?activity=2&exercise=1" aria-label="Next activity"></a><h1>1. Separating Two Groups</h1><section class="exercise" id="activity-1-step-1" hidden><h2>Start training</h2><p>Press the play button.</p>
+<section class="activity" id="activity-1" hidden><a class="activity-arrow activity-arrow-right" href="?activity=2&exercise=1" aria-label="Next activity"></a><h1>1. Separating Two Groups</h1><div class="activity-stack"><section class="exercise" id="activity-1-step-1" hidden><h2>Start training</h2><p>Press the play button.</p>
 <div class="exercise-nav"><span>Step 1 of 3</span><button onclick="showStep(2)">Next</button></div></section><section class="exercise" id="activity-1-step-2" hidden><h2>Change the learning rate</h2><p>Try increasing the learning rate.</p>
 <details class="note">
 <summary>Hint</summary><p>Try 0.1.</p>
 </details>
 <div class="exercise-nav"><button onclick="showStep(1)">Back</button><span>Step 2 of 3</span><button onclick="showStep(3)">Next</button></div></section><section class="exercise" id="activity-1-step-3" hidden><h2>Challenge</h2><p>How quickly can you train the network?</p>
-<div class="exercise-nav"><button onclick="showStep(2)">Back</button><span>Step 3 of 3</span><a class="next-activity-button" href="?activity=2&exercise=1">Next activity</a></div></section><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
-</section>
-<section class="activity" id="activity-2" hidden><a class="activity-arrow activity-arrow-left" href="?activity=1&exercise=1" aria-label="Previous activity"></a><h1>2. A Harder Dataset</h1><section class="exercise" id="activity-2-step-1" hidden><h2>Choose the data</h2><p>Select the spiral dataset.</p>
+<div class="exercise-nav"><button onclick="showStep(2)">Back</button><span>Step 3 of 3</span><a class="next-activity-button" href="?activity=2&exercise=1">Next activity</a></div></section><div class="activity-content"><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
+</div></div></section>
+<section class="activity" id="activity-2" hidden><a class="activity-arrow activity-arrow-left" href="?activity=1&exercise=1" aria-label="Previous activity"></a><h1>2. A Harder Dataset</h1><div class="activity-stack"><section class="exercise" id="activity-2-step-1" hidden><h2>Choose the data</h2><p>Select the spiral dataset.</p>
 <div class="exercise-nav"><span>Step 1 of 2</span><button onclick="showStep(2)">Next</button></div></section><section class="exercise" id="activity-2-step-2" hidden><h2>Add a layer</h2><p>Try adding another hidden layer.</p>
-<div class="exercise-nav"><button onclick="showStep(1)">Back</button><span>Step 2 of 2</span></div></section><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
-</section>
+<div class="exercise-nav"><button onclick="showStep(1)">Back</button><span>Step 2 of 2</span></div></section><div class="activity-content"><p><iframe src="https://gradientgrove.com/tensorflow-playground/#hideText=true&amp;dataset_hide=true&amp;activation=tanh&amp;batchSize=10&amp;dataset=spiral&amp;regDataset=reg-plane&amp;learningRate=0.03&amp;regularizationRate=0.001&amp;noise=25&amp;networkShape=2&amp;seed=0.36647&amp;showTestData=false&amp;discretize=false&amp;percTrainData=50&amp;x=true&amp;y=true&amp;xTimesY=false&amp;xSquared=false&amp;ySquared=false&amp;cosX=false&amp;sinX=false&amp;cosY=false&amp;sinY=false&amp;collectStats=false&amp;problem=classification&amp;initZero=false&amp;showTestData_hide=false&amp;stepButton_hide=false&amp;noise_hide=true&amp;discretize_hide=true&amp;batchSize_hide=true&amp;percTrainData_hide=true&amp;activation_hide=false&amp;regularization_hide=false&amp;regularizationRate_hide=false&amp;problem_hide=true" style="width:110%; aspect-ratio: 16 / 14; "></iframe></p>
+</div></div></section>
 
 </main>
 
