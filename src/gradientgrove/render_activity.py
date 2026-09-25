@@ -34,6 +34,29 @@ from pathlib import Path
 from mkdocs.utils.meta import get_data
 from gradientgrove.markdown_publish import build_tree
 
+THEME_VARIABLES = {
+    "background": "--gg-bg",
+    "paper": "--gg-paper",
+    "text": "--gg-text",
+    "primary": "--gg-primary",
+    "accent": "--gg-accent",
+    "secondary": "--gg-secondary",
+}
+
+
+def theme_to_css(theme):
+    """Convert activity_theme YAML settings to CSS variable overrides."""
+
+    declarations = [
+        f"{THEME_VARIABLES[name]}: {value};"
+        for name, value in theme.items()
+        if name in THEME_VARIABLES
+    ]
+
+    if not declarations:
+        return ""
+
+    return ":root { " + " ".join(declarations) + " }"
 
 HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
@@ -43,73 +66,9 @@ HTML_TEMPLATE = """<!doctype html>
 <title>{title}</title>
 
 <style>
-body {{
-    margin: 0;
-    font-family: system-ui, sans-serif;
-    background: #f7f7f7;
-    color: #222;
-}}
+{default_css}
 
-nav.top {{
-    padding: 1rem;
-    background: white;
-    border-bottom: 1px solid #ddd;
-}}
-
-nav.top a {{
-    margin-right: 1rem;
-}}
-
-main {{
-    max-width: 1400px;
-    margin: auto;
-    padding: 1rem;
-}}
-
-.landing {{
-    max-width: 800px;
-}}
-
-.activity iframe {{
-    width: 100%;
-    height: 65vh;
-    border: 0;
-    background: white;
-}}
-
-.exercise {{
-    margin-top: 1rem;
-    padding: 1rem;
-    background: white;
-    border: 1px solid #ddd;
-}}
-
-.exercise-nav {{
-    display: flex;
-    justify-content: space-between;
-    margin-top: 1rem;
-}}
-
-.activity-list a {{
-    display: block;
-    margin: .5rem 0;
-    padding: 1rem;
-    border: 1px solid #ccc;
-    background: white;
-}}
-
-.admonition,
-details {{
-    margin: 1rem 0;
-    padding: .75rem 1rem;
-    border-left: 4px solid #888;
-    background: #f5f5f5;
-}}
-
-summary,
-.admonition-title {{
-    font-weight: bold;
-}}
+{theme_css}
 </style>
 </head>
 
@@ -152,6 +111,10 @@ if (activity) {{
     document.querySelector("#landing").hidden = true;
     page.hidden = false;
 
+    document
+        .querySelector(`nav.top a[data-activity="${{activity}}"]`)
+        ?.classList.add("active");
+
     const step = Number(
         new URLSearchParams(location.search).get("exercise") || 1
     );
@@ -165,7 +128,7 @@ if (activity) {{
 """
 
 
-def render(source, title):
+def render(source, title, theme=None, exercise_position="bottom"):
     """Build the GradientGrove AST and render the activity HTML page."""
 
     tree = build_tree(
@@ -203,9 +166,41 @@ def render(source, title):
         activity_title = activity.title or f"Activity {i}"
 
         # Activity links appear both in the top navigation and landing page.
+        # link = (
+        #     f'<a href="?activity={i}&step=1">'
+        #     f'{html.escape(activity_title)}</a>'
+        # )
         link = (
-            f'<a href="?activity={i}&step=1">'
+            f'<a href="?activity={i}&exercise=1" data-activity="{i}">'
             f'{html.escape(activity_title)}</a>'
+        )
+
+        # prev_activity = (
+        #     f'<a class="activity-arrow activity-arrow-left" '
+        #     f'href="?activity={i - 1}&exercise=1" '
+        #     f'aria-label="Previous activity">←</a>'
+        #     if i > 1 else ""
+        # )
+
+        # next_activity = (
+        #     f'<a class="activity-arrow activity-arrow-right" '
+        #     f'href="?activity={i + 1}&exercise=1" '
+        #     f'aria-label="Next activity">→</a>'
+        #     if i < len(activities) else ""
+        # )
+
+        prev_activity = (
+            f'<a class="activity-arrow activity-arrow-left" '
+            f'href="?activity={i - 1}&exercise=1" '
+            f'aria-label="Previous activity"></a>'
+            if i > 1 else ""
+        )
+
+        next_activity = (
+            f'<a class="activity-arrow activity-arrow-right" '
+            f'href="?activity={i + 1}&exercise=1" '
+            f'aria-label="Next activity"></a>'
+            if i < len(activities) else ""
         )
 
         topnav.append(link)
@@ -229,13 +224,24 @@ def render(source, title):
             step_title = step.title or f"Step {j}"
             
             prev_button = (
-                f'<button onclick="showStep({j - 1})">← Back</button>'
+                f'<button onclick="showStep({j - 1})">Back</button>'
                 if j > 1 else ""
             )
 
+            # next_button = (
+            #     f'<button onclick="showStep({j + 1})">Next →</button>'
+            #     if j < len(steps) else ""
+            # )
             next_button = (
-                f'<button onclick="showStep({j + 1})">Next →</button>'
-                if j < len(steps) else ""
+                f'<button onclick="showStep({j + 1})">Next</button>'
+                if j < len(steps)
+                else (
+                    f'<a class="next-activity-button" '
+                    f'href="?activity={i + 1}&exercise=1">'
+                    f'Next activity</a>'
+                    if i < len(activities)
+                    else ""
+                )
             )
 
             # Render the contents of the step using GradientGrove's normal
@@ -284,16 +290,55 @@ def render(source, title):
             if child.name != "exercise"
         )
 
+        # activity_html.append(
+        #     f'<section class="activity" id="activity-{i}" hidden>'
+        #     f'<h1>{html.escape(activity_title)}</h1>'
+        #     f'{activity_body}'
+        #     f'{"".join(steps_html)}'
+        #     f'</section>'
+        # )
+
+        # activity_html.append(
+        #     f'<section class="activity" id="activity-{i}" hidden>'
+        #     f'{prev_activity}'
+        #     f'{next_activity}'
+        #     f'<h1>{html.escape(activity_title)}</h1>'
+        #     f'{activity_body}'
+        #     f'{"".join(steps_html)}'
+        #     f'</section>'
+        # )
+
+        exercise_body = "".join(steps_html)
+
+        if exercise_position == "top":
+            content = exercise_body + activity_body
+        else:
+            content = activity_body + exercise_body
+
         activity_html.append(
             f'<section class="activity" id="activity-{i}" hidden>'
+            f'{prev_activity}'
+            f'{next_activity}'
             f'<h1>{html.escape(activity_title)}</h1>'
-            f'{activity_body}'
-            f'{"".join(steps_html)}'
+            f'{content}'
             f'</section>'
         )
 
+    css_path = Path(__file__).resolve().parent / "activity.css"
+    default_css = css_path.read_text(encoding="utf-8")  
+
+    # return HTML_TEMPLATE.format(
+    #     title=html.escape(title),
+    #     landing=landing,
+    #     topnav="\n".join(topnav),
+    #     activity_list="\n".join(activity_list),
+    #     activities="\n".join(activity_html),
+    # )
+
     return HTML_TEMPLATE.format(
         title=html.escape(title),
+        default_css=default_css,
+        theme_css=theme_to_css(theme or {}),
         landing=landing,
         topnav="\n".join(topnav),
         activity_list="\n".join(activity_list),
@@ -321,8 +366,14 @@ def main():
 
     output = args.output or args.input.with_suffix(".html")
 
+    theme = metadata.get("activity_theme", {})
+    exercise_position = metadata.get("exercise_position", "bottom").lower()
+
+    if exercise_position not in {"top", "bottom"}:
+        exercise_position = "bottom"
+
     output.write_text(
-        render(source, title),
+        render(source, title, theme, exercise_position),
         encoding="utf-8",
     )
 

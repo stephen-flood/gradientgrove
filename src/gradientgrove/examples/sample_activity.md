@@ -1,5 +1,15 @@
 ---
 title: Open Lab Night
+
+exercise_position: "top"
+
+activity_theme:
+  background: "#f8f8f5"
+  paper: "#ffffff"
+  text: "#303338"
+  primary: "#55567a"
+  accent: "#a96f4e"
+  secondary: "#66818f"
 ---
 
 # Neural Networks

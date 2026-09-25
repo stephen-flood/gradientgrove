@@ -24,7 +24,10 @@ license = "GPL-3.0-only"
 license-files = ["LICEN[CS]E*"] 
 
 [tool.setuptools.package-data]
-gradientgrove = ["gradientgrove.css"]
+gradientgrove = [
+    "gradientgrove.css",
+    "activity.css",
+]
 
 [project.urls]
 Homepage = "https://gradientgrove.com"
