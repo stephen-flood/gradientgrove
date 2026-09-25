@@ -228,7 +228,12 @@ def render(source, title, theme=None, exercise_position="bottom"):
         steps_html = []
 
         for j, step in enumerate(steps, start=1):
-            step_title = step.title or f"Step {j}"
+            # step_title = step.title or f"Step {j}"
+            step_title_html = ET.tostring(
+                list(step.etree)[0],
+                encoding="unicode",
+                method="html",
+            )
             
             # prev_button = (
             #     f'<button onclick="showStep({j - 1})">Back</button>'
@@ -308,7 +313,8 @@ def render(source, title, theme=None, exercise_position="bottom"):
             steps_html.append(
                 f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
                 # f'<h1 class="activity-title">{html.escape(activity_title)}</h1>'
-                f'<h2 class="exercise-title">{html.escape(step_title)}</h2>'
+                # f'<h2 class="exercise-title">{html.escape(step_title)}</h2>'
+                f'{step_title_html}'
                 f'{step_body}'
                 f'<div class="exercise-nav">'
                 f'{prev_button}'
