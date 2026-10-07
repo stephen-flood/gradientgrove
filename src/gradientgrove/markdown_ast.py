@@ -107,6 +107,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
 
 .reveal pre {
     width: 100%;
+    margin: 0;
 }
 
 .reveal pre code {
@@ -147,6 +148,7 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
 }
                              
 /* Prevent spaces from building up between containers */
+/* Uniform LaTeX-like block spacing */
 .reveal section > * {
     margin-top: 0;
     margin-bottom: 0;
@@ -154,6 +156,29 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
 
 .reveal section > * + * {
     margin-top: 0.4em;
+}
+
+/* Remove Reveal's extra spacing without changing block-to-block rhythm */
+.reveal section ul,
+.reveal section ol {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.reveal section pre {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.reveal section img {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.reveal section p:has(> img:only-child) {
+    line-height: 0;
 }
 
 .reveal p {
@@ -188,6 +213,12 @@ REVEALJS_TEMPLATE = Template("""<!doctype html>
 /* scale images to match rescaled font size */
 .reveal img.latex-svg {
     zoom: 1.8;
+}
+
+.reveal img.latex-svg {
+    zoom: 1.8;
+    margin: 0;
+    vertical-align: middle;
 }
 
 $extra_css
@@ -476,6 +507,13 @@ showstringspaces=false,
 $dateline
 \begin{document}
 """.strip())
+
+BOOK_HEADER_TEMPLATE = Template(
+    ARTICLE_HEADER_TEMPLATE.template.replace(
+        r"\documentclass{article}",
+        r"\documentclass{report}",
+    )
+)
 
 # ------------------------------------------------------------
 # Capture the FINAL markdown etree (after inline processing)
@@ -1501,6 +1539,12 @@ class SyntaxTree:
 
             return el
 
+        if self.name == "part":
+            return ET.Element("h1")  # set text = self.title
+
+        if self.name == "chapter":
+            return ET.Element("h2")  # set text = self.title
+
         # ordinary element
         el = ET.Element(self.tag, self.attrs)
         el.text = self.text
@@ -1871,6 +1915,7 @@ class SyntaxTree:
         author="Stephen Flood",
         date=None,
         beamer=False,
+        book=False,
         omit_envs=None,
         transparent_envs=None,
         fast=True,
@@ -1896,8 +1941,15 @@ class SyntaxTree:
 
         if beamer:
             template = BEAMER_HEADER_TEMPLATE
+        elif book:
+            template = BOOK_HEADER_TEMPLATE
         else:
             template = ARTICLE_HEADER_TEMPLATE
+
+        # if beamer:
+        #     template = BEAMER_HEADER_TEMPLATE
+        # else:
+        #     template = ARTICLE_HEADER_TEMPLATE
 
         header = template.safe_substitute(locals())
         return header + "\n" + body + "\n\\end{document}\n"

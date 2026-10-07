@@ -83,11 +83,6 @@ HTML_TEMPLATE = """<!doctype html>
 
 <section id="landing" class="landing">
 {landing}
-
-<h2>Activities</h2>
-<div class="activity-list">
-{activity_list}
-</div>
 </section>
 
 {activities}
@@ -157,6 +152,12 @@ def render(source, title, theme=None, exercise_position="bottom"):
         for node in tree.children
         if node.name != "activity"
     )
+    # Add navigation to landing page
+    landing += (
+        '<a class="activity-arrow activity-arrow-right" '
+        'href="?activity=1&exercise=1" '
+        'aria-label="Next activity"></a>'
+    )
 
     topnav = []
     activity_list = []
@@ -195,18 +196,29 @@ def render(source, title, theme=None, exercise_position="bottom"):
         #     if i < len(activities) else ""
         # )
 
+        # prev_activity = (
+        #     f'<a class="activity-arrow activity-arrow-left" '
+        #     f'href="?activity={i - 1}&exercise=1" '
+        #     f'aria-label="Previous activity"></a>'
+        #     if i > 1 else ""
+        # )
+
+        # next_activity = (
+        #     f'<a class="activity-arrow activity-arrow-right" '
+        #     f'href="?activity={i + 1}&exercise=1" '
+        #     f'aria-label="Next activity"></a>'
+        #     if i < len(activities) else ""
+        # )
         prev_activity = (
             f'<a class="activity-arrow activity-arrow-left" '
-            f'href="?activity={i - 1}&exercise=1" '
+            f'href="{"?" if i == 1 else f"?activity={i - 1}&exercise=1"}" '
             f'aria-label="Previous activity"></a>'
-            if i > 1 else ""
         )
 
         next_activity = (
             f'<a class="activity-arrow activity-arrow-right" '
-            f'href="?activity={i + 1}&exercise=1" '
+            f'href="{"?" if i == len(activities) else f"?activity={i + 1}&exercise=1"}" '
             f'aria-label="Next activity"></a>'
-            if i < len(activities) else ""
         )
 
         topnav.append(link)
@@ -426,6 +438,22 @@ def render(source, title, theme=None, exercise_position="bottom"):
             f'</div>'
             f'</section>'
         )
+
+    activity_list_html = (
+        '<h2>Activities</h2>'
+        '<div class="activity-list">'
+        + "\n".join(activity_list)
+        + '</div>'
+    )
+
+    # Allow user to manually place list of activities
+    if "<p>[ACTIVITIES]</p>" in landing:
+        landing = landing.replace(
+            "<p>[ACTIVITIES]</p>",
+            activity_list_html,
+        )
+    else:
+        landing += activity_list_html
 
     css_path = Path(__file__).resolve().parent / "activity.css"
     default_css = css_path.read_text(encoding="utf-8")  

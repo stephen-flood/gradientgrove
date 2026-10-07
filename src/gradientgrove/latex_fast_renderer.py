@@ -187,7 +187,12 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.tag == "div" and "toc" in node.attrs.get("class", "").split():
             return "\n\\tableofcontents\n"
 
+        if node.name == "part":
+            return f"\n\\newpage\n\\cleardoublepage\n\\part{{{node.title}}}\n"
 
+        if node.name == "chapter":
+            return f"\n\\newpage\n\\chapter{{{node.title}}}\n"
+        
         ### EXAM-LIKE ENVIRONMENT
         if node.name == "exam":
             # return "\n\\begin{enumerate}\n" + body(node) + "\\end{enumerate}\n"
@@ -349,9 +354,18 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
     return "".join(chunks).strip() + "\n"
 
 
-def to_latex_fast_document(tree, *, title="Document", author="Stephen Flood", beamer=False, omit_envs=None, transparent_envs=None):
+def to_latex_fast_document(tree, *, title="Document", author="Stephen Flood", beamer=False, book=False, omit_envs=None, transparent_envs=None):
     body = render_latex_fast(tree, omit_envs=omit_envs, transparent_envs=transparent_envs)
-    template = BEAMER_HEADER_TEMPLATE if beamer else ARTICLE_HEADER_TEMPLATE
+    
+    # template = BEAMER_HEADER_TEMPLATE if beamer else ARTICLE_HEADER_TEMPLATE
+    # template = BOOK_HEADER_TEMPLATE if book else ARTICLE_HEADER_TEMPLATE
+    if beamer:
+        template = BEAMER_HEADER_TEMPLATE
+    elif book:
+        template = BOOK_HEADER_TEMPLATE
+    else:
+        template = ARTICLE_HEADER_TEMPLATE
+        
     header = template.safe_substitute(locals())
     return header + "\n" + body + "\n\\end{document}\n"
 

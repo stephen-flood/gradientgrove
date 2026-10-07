@@ -232,16 +232,42 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
     # merged_file = output_directory / "mkdocs-merged.md"
     merged_file = output_directory / site_title_md
     try:
-        merged = "\n\n".join(
-            Path(page.file.abs_src_path).read_text(encoding="utf-8")
-            for page in pages
-        )
+        # merged = "\n\n".join(
+        #     Path(page.file.abs_src_path).read_text(encoding="utf-8")
+        #     for page in pages
+        # )
+
+        # Build merged document
+        # add PARTS from directories and CHAPTERS from markdown titles.
+        chunks = []
+        current_part = None
+
+        for page in pages:
+            source = Path(page.file.abs_src_path)
+            text, meta = get_data(source.read_text(encoding="utf-8"))
+
+            title = meta.get("title", source.stem.replace("-", " ").replace("_", " ").title())
+
+            rel = Path(page.file.src_uri)
+            part = rel.parts[0] if len(rel.parts) > 1 else None
+
+            if part and part != current_part:
+                chunks.append(f'!!! part "{part.replace("-", " ").replace("_", " ").title()}"')
+                current_part = part
+
+            chunks.append(f'!!! chapter "{title}"')
+            chunks.append(text)
+
+        merged = "\n\n".join(chunks)
+
         merged_file.write_text(merged, encoding="utf-8")
         generated.extend(
             convert_file(
-                merged_file, output_directory, 
-                    image_base=Path(config.docs_dir),
-                    **options, package_zip=False,
+                merged_file, 
+                output_directory, 
+                image_base=Path(config.docs_dir),
+                book=True,
+                **options, package_zip=False,
                 )
             )
     finally:
@@ -267,7 +293,7 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
 
 def convert_file(filename, output_directory, *, 
                  base=False, tex=False, revealjs=False,beamer=False, handout=False, tex_handout=False, 
-                 worksheet=False, 
+                 worksheet=False, book=False,
                  version="", package_zip=True,
                  image_base=None,
     ):
@@ -426,8 +452,9 @@ def convert_file(filename, output_directory, *,
             \pagestyle{{fancy}}
             \fancyhf{{}}
             \lhead{{Name: \rule{{2in}}{{0.4pt}} }}
-            %\chead{{{author}}}
-            \rhead{{{title}}}
+            \chead{{{title}}}
+            %\rhead{{{title}}}
+            \rhead{{Date: \qquad}}
             \cfoot{{\thepage}}
             \renewcommand{{\headrulewidth}}{{0pt}}
             %\setlength{{\headheight}}{{2.5\baselineskip}} % to make fancyhdr not complain
