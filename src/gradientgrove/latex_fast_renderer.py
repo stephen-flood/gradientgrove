@@ -32,7 +32,8 @@ LATEX_RULES = {
     "i":          (Template("\\emph{$body}"), "tex"),
     "code":       (Template("\\lstinline`$raw`"), "raw"),
     # "a":          (Template("\\href{$href}{$body}"), "tex"),
-    "a":          (Template("\\href{$href}{$body}\\footnote{\\url{$href}}"),"tex"),
+    # "a":          (Template("\\href{$href}{$body}\\footnote{\\url{$href}}"),"tex"),
+    "a":          (Template("\\href{$href}{$body}\\footnote{\\texttt{\\detokenize{$href}}}"),"tex",), # For tufte-book
     
     # Start list environments with a newline so nested lists do not attach to prior item text.
     "ul":         (Template("\n\\begin{itemize}\n$body\\end{itemize}\n\n"), "tex"),
@@ -185,7 +186,12 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
             return "\n\\maketitle"
 
         if node.tag == "div" and "toc" in node.attrs.get("class", "").split():
-            return "\n\\tableofcontents\n"
+            # return "\n\\tableofcontents\n"
+
+            if "toc" in omit_envs:
+                return ""
+            else:
+                return "\n\\tableofcontents\n"
 
         if node.name == "part":
             return f"\n\\newpage\n\\cleardoublepage\n\\part{{{node.title}}}\n"

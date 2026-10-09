@@ -102,7 +102,9 @@ def compile_latex(filename):
         ["lualatex", "-interaction=nonstopmode", filename.name],
         cwd=filename.parent,
         text=True,
+        encoding="utf-8",
         capture_output=True,
+        errors="replace",
         # stdout=subprocess.DEVNULL,
         # stderr=subprocess.STDOUT,
     )
@@ -374,6 +376,7 @@ def convert_file(filename, output_directory, *,
             # author="Stephen Flood",
             author=author,
             date=date,
+            book=True,
             beamer=False,
         )
 
@@ -391,8 +394,10 @@ def convert_file(filename, output_directory, *,
         variant=version_str+"-handout"
         output = tree.to_latex(
             title=title,
-            author="Stephen Flood",
+            # author="Stephen Flood",
+            author=author,
             beamer=False,
+            book=True,
         )
 
         output_file = output_directory / f"{page_name}{variant}.tex"

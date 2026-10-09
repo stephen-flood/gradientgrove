@@ -408,99 +408,248 @@ $dateline
 \end{frame}
 """.strip())
 
-ARTICLE_HEADER_TEMPLATE = Template(r"""
-\documentclass{article}
-\usepackage{beamerarticle}
-%\usepackage[margin=1in,top=0.5in,bottom=0.5in, paperwidth=8.5in, paperheight=11in]{geometry}
-\usepackage[margin=1in, paperwidth=8.5in, paperheight=11in]{geometry}
-\usepackage{tikz}
-\usetikzlibrary{shapes.geometric} 
-\usetikzlibrary{shadings}
-\usetikzlibrary{arrows,calc,decorations.markings}
-\usetikzlibrary{decorations.pathmorphing} 
-\usetikzlibrary{positioning,fit}
-\usepackage{forest}
-\usetikzlibrary{overlay-beamer-styles}
+# ARTICLE_HEADER_TEMPLATE = Template(r"""
+# \documentclass{article}
+# \usepackage{beamerarticle}
+# %\usepackage[margin=1in,top=0.5in,bottom=0.5in, paperwidth=8.5in, paperheight=11in]{geometry}
+# \usepackage[margin=1in, paperwidth=8.5in, paperheight=11in]{geometry}
+# \usepackage{tikz}
+# \usetikzlibrary{shapes.geometric} 
+# \usetikzlibrary{shadings}
+# \usetikzlibrary{arrows,calc,decorations.markings}
+# \usetikzlibrary{decorations.pathmorphing} 
+# \usetikzlibrary{positioning,fit}
+# \usepackage{forest}
+# \usetikzlibrary{overlay-beamer-styles}
 
-%%
-\tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]
-\tikzstyle{block} = [rectangle, draw, fill=gray!10, text width=6em, text centered, rounded corners, minimum height=2em]
-\tikzstyle{reference} = [-latex,decorate, decoration={snake,pre length=4pt,post length=4pt}]
+# %%
+# \tikzstyle{decision} = [diamond, draw, fill=gray!10, text width=6em, text badly centered, inner sep=0pt]
+# \tikzstyle{block} = [rectangle, draw, fill=gray!10, text width=6em, text centered, rounded corners, minimum height=2em]
+# \tikzstyle{reference} = [-latex,decorate, decoration={snake,pre length=4pt,post length=4pt}]
+# \tikzstyle{box} = [minimum height=0.75cm,minimum width=0.75cm]
+
+# \tikzset{gridlines/.style={very thin,step=1}}
+# \tikzset{axes/.style={latex-latex}}
+# \tikzset{curve/.style={color=black,stealth-stealth}}
+# \tikzset{open circle/.style={color=black, very thick, fill=white}}
+# \tikzset{closed circle/.style={color=black, very thick, fill=black}}
+
+# \usepackage{pgfplots} 
+# \pgfplotsset{width=7cm,compat=1.18}
+# \pgfplotsset{colormap={CM}{color(-1cm)=(orange!60) color(0cm)=(black!20) color(1cm)=(blue!60!white)}}
+# %% Simple Style to do Dimensions
+# \pgfarrowsdeclarecombine*{|<}{>|}{latex}{latex}{|}{|}
+# \tikzset{dimen/.style={|<->|,>=latex,thin,every rectangle node/.style={fill=white,midway,font=\sffamily}},}
+# %% Usage
+# %% standard dimension:
+# %%		\draw [dimen] (1,0) -- (1,1.75) node {$f(x)$};
+# %% short dimension:
+# %%   \draw [dimen] (0,-.5) -- (0.4,-.5) node[below=1mm,midway] {$\Delta x$};
+# %%%% Begin: Set up TikZ Package and Styles %%%%
+
+# %%%% Begin: TikZ SPLINE 
+# %%	Draw spline through (x1,y1) with slope m1 and (x2,y2) with slope m2
+# %%		\drawtikzspline(x1,y1,m1,x2,y2,m2)
+# %%
+# \def\drawtikzspline(#1,#2,#3,#4,#5,#6){ \draw[curve,domain=(#1):(#4)] plot (\x , { ( (((#3) + (#6))*(#1) - ((#3) + (#6))*(#4) - 2*(#2) + 2*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) )*((\x)^3) + ( -(((#3) + 2*(#6))*((#1)^2) + ((#3) - (#6))*(#1)*(#4) - (2*(#3) + (#6))*((#4)^2) - 3*((#1) + (#4))*(#2) + 3*((#1) + (#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) *((\x)^2) + ( ((#6)*((#1)^3) + (2*(#3) + (#6))*((#1)^2)*(#4) - ((#3) + 2*(#6))*(#1)*((#4)^2) - (#3)*((#4)^3) - 6*(#1)*(#4)*(#2) + 6*(#1)*(#4)*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) * (\x) + ( -((#6)*((#1)^3)*(#4) + ((#3) - (#6))*((#1)^2)*(#4)^2 - (#3)*(#1)*((#4)^3) - (3*(#1)*((#4)^2) - (#4)^3)*(#2) - ((#1)^3 - 3*((#1)^2)*(#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3))}) }
+# %%%% End: TikZ SPLINE 
+# \usepackage{unicode-math}
+# \usepackage[colorlinks={true},urlcolor=blue,bookmarks={false}]{hyperref}
+# %\usepackage[lastexercise]{exercise}
+# %\renewcommand{\ExerciseHeader}{\textbf{\ExerciseName\ \ExerciseHeaderNB}.}
+# %\newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
+# %\newenvironment{answer}{\begin{Answer}}{\end{Answer}}
+# %\renewcommand{\AnswerHeader}{\textit{Solution (\ExerciseName~\ExerciseHeaderNB}). }
+# \newcounter{exercise}
+# \newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
+# %\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\dotfill$\square$\par\medskip}
+# %\newenvironment{answer}{\begin{adjustwidth}{1.5em}{0pt}\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\end{adjustwidth}\medskip}
+# \newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
+# \setcounter{tocdepth}{1}
+# %\AtEndEnvironment{Answer}{\dotfill$\square$}
+# \usepackage{listings}
+# \newcommand{\passthrough}[1]{#1}
+# \newcommand{\pandocbounded}[1]{#1}
+# \lstset{
+# language=Python,
+# basicstyle=\ttfamily\small,
+# tabsize=4,
+# columns=fullflexible,
+# upquote=true,
+# frame=single,
+# backgroundcolor=\color{white!95!black},
+# breaklines=true,
+# keepspaces=true,
+# showstringspaces=false,
+# }
+# %\setlength{\parindent}{0pt}
+# %\setlength{\parskip}{0.6\baselineskip}
+# \usepackage{parskip}
+# % format tables
+# \usepackage{longtable}
+# \usepackage{booktabs}
+# %\setlength{\tabcolsep}{0.5em} % for the horizontal padding
+# \renewcommand{\arraystretch}{1.2}% for the vertical padding
+# \newcounter{none}
+# %
+# \newcommand{\tightlist}{}
+# \usepackage[most]{tcolorbox}
+# % Formatting for beamerarticle frame enviornment
+# \BeforeBeginEnvironment{frame}{\begin{tcolorbox}[enhanced,breakable,boxrule=0.6pt,colback=white,colframe=black,arc=6pt,left=6pt,right=6pt,top=6pt,bottom=6pt,]}
+# \AfterEndEnvironment{frame}{\end{tcolorbox}}
+# % New environments
+# \newtcolorbox{warning}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+# \newtcolorbox{todo}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+
+
+# \title{$title}
+# \author{$author}
+# $dateline
+# \begin{document}
+# """.strip())
+
+# # BOOK_HEADER_TEMPLATE = Template(
+# #     ARTICLE_HEADER_TEMPLATE.template.replace(
+# #         r"\documentclass{article}",
+# #         r"\documentclass{report}",
+# #     ).replace(
+# #         r"\begin{document}",
+# #         "\\begin{document}\n\\maketitle\n\\tableofcontents\n\\clearpage\n"
+# #     )
+# # )
+# BOOK_HEADER_TEMPLATE = Template(r"""
+# \documentclass[nols]{tufte-book}
+
+# % NOTE: May need to install `tex-gyre` package in MikTeX
+
+# % Patch Soul package for lualatex
+# \usepackage{microtype}
+# \renewcommand{\allcaps}[1]{\textls[150]{\MakeTextUppercase{#1}}}
+# \renewcommand{\smallcaps}[1]{\textls[75]{\textsmallcaps{\MakeTextLowercase{#1}}}}
+
+# % Repair tufte-latex's old LuaLaTeX font setup
+# \setmainfont[Numbers=OldStyle]{TeX Gyre Pagella}
+# \setsansfont[Scale=0.90]{TeX Gyre Heros}
+# \setmonofont[Scale=0.85]{TeX Gyre Cursor}
+# \AtBeginDocument{\normalfont}
+
+# \usepackage{amsmath,amssymb,amsthm}
+# \usepackage{graphicx,tikz,pgfplots,forest}
+# \usetikzlibrary{shapes.geometric,shadings,arrows,calc,decorations.markings,decorations.pathmorphing,positioning,fit}
+# \pgfplotsset{compat=1.18}
+
+# \usepackage{listings}
+# \lstset{language=Python,basicstyle=\ttfamily\small,tabsize=4,columns=fullflexible,upquote=true,frame=single,breaklines=true,keepspaces=true,showstringspaces=false}
+
+# \usepackage{longtable,booktabs}
+# \renewcommand{\arraystretch}{1.2}
+
+# \newcommand{\pause}{}
+
+# \usepackage{tcolorbox}
+# \newcommand{\passthrough}[1]{#1}
+# \newcommand{\pandocbounded}[1]{#1}
+# \newcommand{\tightlist}{}
+
+# \newtheorem{theorem}{Theorem}[chapter]
+# \newtheorem{lemma}[theorem]{Lemma}
+# \newtheorem{proposition}[theorem]{Proposition}
+# \newtheorem{corollary}[theorem]{Corollary}
+# \theoremstyle{definition}
+# \newtheorem{definition}[theorem]{Definition}
+# \newtheorem{example}[theorem]{Example}
+# \theoremstyle{remark}
+# \newtheorem{remark}[theorem]{Remark}
+
+# \newcounter{exercise}
+# \newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
+# \newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
+# \newenvironment{abstract}{\begin{quote}\small}{\end{quote}}
+
+# \newtcolorbox{warning}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+# \newtcolorbox{todo}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
+
+# \hypersetup{colorlinks=true,urlcolor=blue,bookmarks=false}
+# \setcounter{tocdepth}{1}
+
+# \title{$title}
+# \author{$author}
+# $dateline
+# \begin{document}
+# %\frontmatter
+# %\maketitle
+# %\tableofcontents
+# %\mainmatter
+# """.strip())
+
+
+COMMON_LATEX_PREAMBLE = r"""
+% Graphics
+\usepackage{graphicx,tikz,pgfplots,forest}
+\usetikzlibrary{shapes.geometric,shadings,arrows,calc,decorations.markings,decorations.pathmorphing,positioning,fit}
+\pgfplotsset{width=7cm,compat=1.18}
+\pgfplotsset{colormap={CM}{color(-1cm)=(orange!60) color(0cm)=(black!20) color(1cm)=(blue!60!white)}}
+
+\tikzstyle{decision} = [diamond,draw,fill=gray!10,text width=6em,text badly centered,inner sep=0pt]
+\tikzstyle{block} = [rectangle,draw,fill=gray!10,text width=6em,text centered,rounded corners,minimum height=2em]
+\tikzstyle{reference} = [-latex,decorate,decoration={snake,pre length=4pt,post length=4pt}]
 \tikzstyle{box} = [minimum height=0.75cm,minimum width=0.75cm]
-
 \tikzset{gridlines/.style={very thin,step=1}}
 \tikzset{axes/.style={latex-latex}}
 \tikzset{curve/.style={color=black,stealth-stealth}}
-\tikzset{open circle/.style={color=black, very thick, fill=white}}
-\tikzset{closed circle/.style={color=black, very thick, fill=black}}
+\tikzset{open circle/.style={color=black,very thick,fill=white}}
+\tikzset{closed circle/.style={color=black,very thick,fill=black}}
 
-\usepackage{pgfplots} 
-\pgfplotsset{width=7cm,compat=1.18}
-\pgfplotsset{colormap={CM}{color(-1cm)=(orange!60) color(0cm)=(black!20) color(1cm)=(blue!60!white)}}
-%% Simple Style to do Dimensions
 \pgfarrowsdeclarecombine*{|<}{>|}{latex}{latex}{|}{|}
 \tikzset{dimen/.style={|<->|,>=latex,thin,every rectangle node/.style={fill=white,midway,font=\sffamily}},}
-%% Usage
-%% standard dimension:
-%%		\draw [dimen] (1,0) -- (1,1.75) node {$f(x)$};
-%% short dimension:
-%%   \draw [dimen] (0,-.5) -- (0.4,-.5) node[below=1mm,midway] {$\Delta x$};
-%%%% Begin: Set up TikZ Package and Styles %%%%
 
-%%%% Begin: TikZ SPLINE 
-%%	Draw spline through (x1,y1) with slope m1 and (x2,y2) with slope m2
-%%		\drawtikzspline(x1,y1,m1,x2,y2,m2)
-%%
 \def\drawtikzspline(#1,#2,#3,#4,#5,#6){ \draw[curve,domain=(#1):(#4)] plot (\x , { ( (((#3) + (#6))*(#1) - ((#3) + (#6))*(#4) - 2*(#2) + 2*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) )*((\x)^3) + ( -(((#3) + 2*(#6))*((#1)^2) + ((#3) - (#6))*(#1)*(#4) - (2*(#3) + (#6))*((#4)^2) - 3*((#1) + (#4))*(#2) + 3*((#1) + (#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) *((\x)^2) + ( ((#6)*((#1)^3) + (2*(#3) + (#6))*((#1)^2)*(#4) - ((#3) + 2*(#6))*(#1)*((#4)^2) - (#3)*((#4)^3) - 6*(#1)*(#4)*(#2) + 6*(#1)*(#4)*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3) ) * (\x) + ( -((#6)*((#1)^3)*(#4) + ((#3) - (#6))*((#1)^2)*(#4)^2 - (#3)*(#1)*((#4)^3) - (3*(#1)*((#4)^2) - (#4)^3)*(#2) - ((#1)^3 - 3*((#1)^2)*(#4))*(#5))/((#1)^3 - 3*((#1)^2)*(#4) + 3*(#1)*((#4)^2) - (#4)^3))}) }
-%%%% End: TikZ SPLINE 
-\usepackage{unicode-math}
-\usepackage[colorlinks={true},urlcolor=blue,bookmarks={false}]{hyperref}
-%\usepackage[lastexercise]{exercise}
-%\renewcommand{\ExerciseHeader}{\textbf{\ExerciseName\ \ExerciseHeaderNB}.}
-%\newenvironment{exercise}{\begin{Exercise}}{\end{Exercise}}
-%\newenvironment{answer}{\begin{Answer}}{\end{Answer}}
-%\renewcommand{\AnswerHeader}{\textit{Solution (\ExerciseName~\ExerciseHeaderNB}). }
-\newcounter{exercise}
-\newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
-%\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\dotfill$\square$\par\medskip}
-%\newenvironment{answer}{\begin{adjustwidth}{1.5em}{0pt}\smallskip\noindent\textit{Answer (Exercise \theexercise).}\ }{\end{adjustwidth}\medskip}
-\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
-\setcounter{tocdepth}{1}
-%\AtEndEnvironment{Answer}{\dotfill$\square$}
+
+\usetikzlibrary{overlay-beamer-styles}
+
+% Code
 \usepackage{listings}
 \newcommand{\passthrough}[1]{#1}
 \newcommand{\pandocbounded}[1]{#1}
-\lstset{
-language=Python,
-basicstyle=\ttfamily\small,
-tabsize=4,
-columns=fullflexible,
-upquote=true,
-frame=single,
-backgroundcolor=\color{white!95!black},
-breaklines=true,
-keepspaces=true,
-showstringspaces=false,
-}
-%\setlength{\parindent}{0pt}
-%\setlength{\parskip}{0.6\baselineskip}
-\usepackage{parskip}
-% format tables
-\usepackage{longtable}
-\usepackage{booktabs}
-%\setlength{\tabcolsep}{0.5em} % for the horizontal padding
-\renewcommand{\arraystretch}{1.2}% for the vertical padding
-\newcounter{none}
-%
 \newcommand{\tightlist}{}
-\usepackage[most]{tcolorbox}
-% Formatting for beamerarticle frame enviornment
-\BeforeBeginEnvironment{frame}{\begin{tcolorbox}[enhanced,breakable,boxrule=0.6pt,colback=white,colframe=black,arc=6pt,left=6pt,right=6pt,top=6pt,bottom=6pt,]}
-\AfterEndEnvironment{frame}{\end{tcolorbox}}
-% New environments
+\lstset{language=Python,basicstyle=\ttfamily\small,tabsize=4,columns=fullflexible,upquote=true,frame=single,
+backgroundcolor=\color{white!95!black},breaklines=true,keepspaces=true,showstringspaces=false}
+
+% Tables
+\usepackage{longtable,booktabs}
+\renewcommand{\arraystretch}{1.2}
+
+% Boxes / exercises
+\usepackage{tcolorbox}
+\newcounter{exercise}
+\newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
+\newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
 \newtcolorbox{warning}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
 \newtcolorbox{todo}{colback=orange!10,colframe=orange!80!black,arc=2mm,boxrule=0.8pt}
 
+\hypersetup{colorlinks=true,urlcolor=blue,bookmarks=false}
+\setcounter{tocdepth}{1}
+"""
+
+
+ARTICLE_HEADER_TEMPLATE = Template(r"""
+\documentclass{article}
+
+\usepackage{beamerarticle}
+\usepackage[margin=1in,paperwidth=8.5in,paperheight=11in]{geometry}
+\usepackage{unicode-math}
+\usepackage{hyperref}
+
+""" + COMMON_LATEX_PREAMBLE + r"""
+
+% Article/Beamer-specific behavior
+\usetikzlibrary{overlay-beamer-styles}
+\usepackage{parskip}
+\tcbuselibrary{skins,breakable}
+\BeforeBeginEnvironment{frame}{\begin{tcolorbox}[enhanced,breakable,boxrule=0.6pt,colback=white,colframe=black,arc=6pt,left=6pt,right=6pt,top=6pt,bottom=6pt]}
+\AfterEndEnvironment{frame}{\end{tcolorbox}}
+
+\newcounter{none}
 
 \title{$title}
 \author{$author}
@@ -508,12 +657,53 @@ $dateline
 \begin{document}
 """.strip())
 
-BOOK_HEADER_TEMPLATE = Template(
-    ARTICLE_HEADER_TEMPLATE.template.replace(
-        r"\documentclass{article}",
-        r"\documentclass{report}",
-    )
-)
+BOOK_HEADER_TEMPLATE = Template(r"""
+\documentclass[titlepage,nols]{tufte-book}
+
+% Modern replacement for Tufte's old soul letterspacing
+\usepackage{microtype}
+\renewcommand{\allcaps}[1]{\textls[150]{\MakeTextUppercase{#1}}}
+\renewcommand{\smallcaps}[1]{\textls[75]{\textsmallcaps{\MakeTextLowercase{#1}}}}
+
+% Tufte LuaLaTeX font repair
+\setmainfont[Numbers=OldStyle]{TeX Gyre Pagella}
+\setsansfont[Scale=0.90]{TeX Gyre Heros}
+\setmonofont[Scale=0.85]{TeX Gyre Cursor}
+\AtBeginDocument{\normalfont}
+
+% Allow alt for `visible on` in tikz
+\providecommand{\alt}[3][]{#2}
+
+\usepackage{amsmath,amssymb,amsthm}
+
+""" + COMMON_LATEX_PREAMBLE + r"""
+
+% Things emitted by slide-oriented Markdown but meaningless in books
+\newcommand{\pause}{}
+
+% Book theorem environments
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newenvironment{abstract}{\begin{quote}\small}{\end{quote}}
+
+\title{$title}
+\author{$author}
+$dateline
+\begin{document}
+\frontmatter
+\maketitle
+\tableofcontents
+\mainmatter
+""".strip())
+
 
 # ------------------------------------------------------------
 # Capture the FINAL markdown etree (after inline processing)
@@ -1922,8 +2112,19 @@ class SyntaxTree:
     ):
         """Generate a LaTeX document output."""
 
+        if beamer:
+            template = BEAMER_HEADER_TEMPLATE
+        elif book: 
+            if not omit_envs:
+                omit_envs = ["maketitle", "toc"]
+            template = BOOK_HEADER_TEMPLATE
+        else:
+            template = ARTICLE_HEADER_TEMPLATE
+
+
         if fast:
             body = render_latex_fast(self, omit_envs=omit_envs, transparent_envs=transparent_envs)
+
         else:
             print("Pre-process to identify pandoc nodes.")
             self.mark_call_pandoc()
@@ -1938,13 +2139,6 @@ class SyntaxTree:
 
         # Define date parameter
         dateline = rf"\date{{{date}}}" if date else ""
-
-        if beamer:
-            template = BEAMER_HEADER_TEMPLATE
-        elif book:
-            template = BOOK_HEADER_TEMPLATE
-        else:
-            template = ARTICLE_HEADER_TEMPLATE
 
         # if beamer:
         #     template = BEAMER_HEADER_TEMPLATE
