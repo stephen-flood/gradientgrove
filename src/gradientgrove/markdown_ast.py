@@ -671,8 +671,18 @@ BOOK_HEADER_TEMPLATE = Template(r"""
 \setmonofont[Scale=0.85]{TeX Gyre Cursor}
 \AtBeginDocument{\normalfont}
 
-% Allow alt for `visible on` in tikz
-\providecommand{\alt}[3][]{#2}
+% Minimal Beamer compatibility for book output
+\NewDocumentEnvironment{frame}{O{} m}
+  {\par\medskip\noindent\textbf{#2}\par\smallskip}
+  {\par\medskip}
+
+\newcommand{\pause}{}
+
+\def\alt<#1>#2#3{#2}
+\def\only<#1>#2{#2}
+\def\uncover<#1>#2{#2}
+\def\visible<#1>#2{#2}
+
 
 \usepackage{amsmath,amssymb,amsthm}
 
