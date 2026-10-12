@@ -78,7 +78,6 @@ HTML_TEMPLATE = """<!doctype html>
 
 {theme_css}
 </style>
-<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
 </head>
 
 <body>
@@ -102,14 +101,28 @@ HTML_TEMPLATE = """<!doctype html>
 const activity = new URLSearchParams(location.search).get("activity");
 const page = document.querySelector(`#activity-${{activity}}`);
 
-function showStep(n) {{
+// function showStep(n) {{
+//     page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
+//     page.querySelector(`#activity-${{activity}}-step-${{n}}`).hidden = false;
+
+//     const url = new URL(location);
+//     url.searchParams.set("exercise", n);
+//     history.replaceState(null, "", url);
+// }}
+function showStep(n) {
     page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
-    page.querySelector(`#activity-${{activity}}-step-${{n}}`).hidden = false;
+
+    const step = page.querySelector(
+        `#activity-${activity}-step-${n}`
+    );
+
+    step.hidden = false;
+    runPythonApp(step);
 
     const url = new URL(location);
     url.searchParams.set("exercise", n);
     history.replaceState(null, "", url);
-}}
+}
 
 if (activity) {{
     document.querySelector("#landing").hidden = true;
@@ -148,31 +161,55 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
 }});
 
 
-// stdio-only Python: hide JupyterLite's next-code prompt.
-document.querySelectorAll("iframe.python-app").forEach(frame => {{
-    frame.addEventListener("load", () => {{
+// Run python apps in a single persistent jupyterlite kernel
+async function runPythonApp(step) {
+    const source = step.querySelector(".python-app-source");
+    if (!source) return;
+
+    const frame = step
+        .closest(".activity")
+        .querySelector("iframe.python-app");
+
+    // Wait for JupyterLite and its kernel.
+    let console;
+    while (!console?.sessionContext.session?.kernel) {
+        console =
+            frame.contentWindow.jupyterapp
+                ?.shell.currentWidget
+                ?.console;
+
+        await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    // Configure this iframe once.
+    if (!frame.dataset.configured) {
         const style = frame.contentDocument.createElement("style");
 
         style.textContent = `
-            /* Hide JupyterLite's next-command box. */
-            .jp-CodeConsole-input {{
+            .jp-CodeConsole-input {
                 display: none !important;
-            }}
+            }
 
-            /* Hide the stdin history hint. */
-            .jp-Stdin-input::placeholder {{
+            .jp-Stdin-input::placeholder {
                 color: transparent !important;
-            }}
+            }
 
-            /* Scale the whole app UI. */
-            body {{
+            body {
                 zoom: 1.75;
-            }}
+            }
         `;
+
         frame.contentDocument.head.appendChild(style);
-    }});
-}});
-</script>
+        frame.dataset.configured = "true";
+    }
+
+    // Fresh user namespace by default.
+    if (source.dataset.persist !== "true") {
+        await console.inject("%reset -f");
+    }
+
+    await console.inject(source.value);
+}
 
 
 </body>
@@ -263,29 +300,18 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
 
 
 def python_app_fence(source, language, css_class, options, md, **kwargs):
-    """Run author-supplied Python as a small stdin/stdout app."""
+    """Store a Python program for the activity's shared JupyterLite kernel."""
 
-    config = {
-        "title": "Python App",
-        "url": JUPYTERLITE_REPL,
-        "class": "python-app",
-        "height": "500px",
-        "query": {
-            "kernel": "python",
-            "showBanner": 0,
-            "hideCodeInput": 1,
-            "code": source.strip(),
-        },
-    }
+    persist = "persist" in kwargs.get("attrs", {})
 
-    return iframe_fence(
-        yaml.safe_dump(config, sort_keys=False),
-        language,
-        css_class,
-        options,
-        md,
-        **kwargs,
+    return (
+        f'<textarea class="python-app-source" '
+        f'data-persist="{str(persist).lower()}" hidden>'
+        f'{html.escape(source)}'
+        '</textarea>'
     )
+
+
 
 def interactive_python_fence(source, language, css_class, options, md, **kwargs):
     attrs = kwargs.get("attrs", {})
@@ -627,6 +653,26 @@ def render(source, title, theme=None, exercise_position="bottom"):
         # )            
 
         exercise_body = "".join(steps_html)
+
+
+        # Python apps in an activity share one JupyterLite/Pyodide kernel.
+        if "python-app-source" in exercise_body:
+            activity_body += iframe_fence(
+                yaml.safe_dump({
+                    "title": "Python App",
+                    "url": JUPYTERLITE_REPL,
+                    "class": "python-app",
+                    "height": "500px",
+                    "query": {
+                        "kernel": "python",
+                        "execute": 0,
+                        "showBanner": 0,
+                        "hideCodeInput": 1,
+                        "clearCellsOnExecute": 1,
+                    },
+                }),
+                "", "", {}, None,
+            )
 
         activity_content = (
             f'<div class="activity-content">'
