@@ -77,10 +77,19 @@ HTML_TEMPLATE = """<!doctype html>
 {default_css}
 
 {theme_css}
+
 </style>
 </head>
 
 <body>
+<div id="python-app-frame" hidden>
+    <iframe
+        class="python-app"
+        src="/jupyterlite/repl/index.html?kernel=python&execute=0&showBanner=0&hideCodeInput=1&clearCellsOnExecute=1"
+        title="Python App"
+        style="width: 100%; height: 500px;">
+    </iframe>
+</div>
 
 <nav class="top">
 <a href="?">Home</a>
@@ -160,55 +169,104 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
     element.appendChild(button);
 }});
 
-// Run python apps in a single persistent jupyterlite kernel
-async function runPythonApp(step) {{
-    const source = step.querySelector(".python-app-source");
-    if (!source) return;
+// One shared Pyodide instance for every python-app on the page.
+let pythonAppPyodide = null;
+let pythonAppNamespace = null;
+let pythonAppOutput = null;
 
-    const frame = step
-        .closest(".activity")
-        .querySelector("iframe.python-app");
 
-    // Wait for JupyterLite and its kernel.
-    let console;
-    while (!console?.sessionContext.session?.kernel) {{
-        console =
-            frame.contentWindow.jupyterapp
-                ?.shell.currentWidget
-                ?.console;
+// Create an inline input box and wait for Enter.
+globalThis.pythonAppInput = function(prompt = "") {{
+    return new Promise(resolve => {{
+        const row = document.createElement("div");
 
-        await new Promise(resolve => setTimeout(resolve, 50));
-    }}
+        const label = document.createElement("span");
+        label.textContent = prompt;
 
-    // Configure this iframe once.
-    if (!frame.dataset.configured) {{
-        const style = frame.contentDocument.createElement("style");
+        const input = document.createElement("input");
+        input.type = "text";
 
-        style.textContent = `
-            .jp-CodeConsole-input {{
-                display: none !important;
-            }}
+        row.append(label, input);
+        pythonAppOutput.appendChild(row);
 
-            .jp-Stdin-input::placeholder {{
-                color: transparent !important;
-            }}
+        input.addEventListener("keydown", event => {{
+            if (event.key !== "Enter") return;
 
-            body {{
-                zoom: 1.75;
-            }}
-        `;
+            event.preventDefault();
+            input.disabled = true;
+            resolve(input.value);
+        }});
 
-        frame.contentDocument.head.appendChild(style);
-        frame.dataset.configured = "true";
-    }}
+        input.focus();
+    }});
+}};
 
-    // Fresh user namespace by default.
-    if (source.dataset.persist !== "true") {{
-        await console.inject("%reset -f");
-    }}
 
-    await console.inject(source.value);
+// Load Pyodide once and make ordinary Python input() use our inline box.
+async function getPythonAppPyodide() {{
+    if (pythonAppPyodide) return pythonAppPyodide;
+
+    pythonAppPyodide = await loadPyodide();
+
+    await pythonAppPyodide.runPythonAsync(`
+import builtins
+from js import pythonAppInput
+from pyodide.ffi import run_sync
+
+def _python_app_input(prompt=""):
+    return run_sync(pythonAppInput(prompt))
+
+builtins.input = _python_app_input
+`);
+
+    return pythonAppPyodide;
 }}
+
+
+// Run the python-app contained in this activity/exercise.
+async function runPythonApp(scope) {{
+    const app = scope.matches?.(".python-app")
+        ? scope
+        : scope.querySelector(".python-app");
+
+    if (!app) return;
+
+    const source = app.querySelector(".python-app-source");
+    const output = app.querySelector(".python-app-output");
+
+    pythonAppOutput = output;
+    output.replaceChildren();
+
+    const pyodide = await getPythonAppPyodide();
+
+    // stdout and stderr go into this app's output box.
+    const write = text =>
+        output.append(document.createTextNode(text + "\\n"));
+
+    pyodide.setStdout({{
+        batched: write
+    }});
+
+    pyodide.setStderr({{
+        batched: write
+    }});
+
+    // Default: fresh user namespace.
+    // {persist} reuses the namespace from the previous app.
+    if (!pythonAppNamespace || source.dataset.persist !== "true") {{
+        pythonAppNamespace = pyodide.runPython("dict()");
+    }}
+
+    try {{
+        await pyodide.runPythonAsync(source.value, {{
+            globals: pythonAppNamespace
+        }});
+    }} catch (error) {{
+        write(String(error));
+    }}
+}}
+</script>
+
 </body>
 </html>
 """
@@ -295,19 +353,17 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
 #     )
 
 
-
 def python_app_fence(source, language, css_class, options, md, **kwargs):
-    """Store a Python program for the activity's shared JupyterLite kernel."""
-
     persist = "persist" in kwargs.get("attrs", {})
 
     return (
-        f'<textarea class="python-app-source" '
-        f'data-persist="{str(persist).lower()}" hidden="hidden">'
+        f'<div class="python-app-slot" '
+        f'data-persist="{str(persist).lower()}">'
+        f'<textarea class="python-app-source" hidden="hidden">'
         f'{html.escape(source)}'
-        '</textarea>'
+        f'</textarea>'
+        f'</div>'
     )
-
 
 
 def interactive_python_fence(source, language, css_class, options, md, **kwargs):
