@@ -48,6 +48,9 @@ THEME_VARIABLES = {
     "secondary": "--gg-secondary",
 }
 
+# JUPYTERLITE_REPL = "https://gradientgrove.com/jupyterlite/repl/index.html"
+JUPYTERLITE_REPL = "https://jupyterlite.readthedocs.io/en/stable/_static/repl/index.html"
+
 
 def theme_to_css(theme):
     """Convert activity_theme YAML settings to CSS variable overrides."""
@@ -75,6 +78,7 @@ HTML_TEMPLATE = """<!doctype html>
 
 {theme_css}
 </style>
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
 </head>
 
 <body>
@@ -122,8 +126,7 @@ if (activity) {{
 
         showStep(step);
     }}
-}
-}
+}}
 document.querySelectorAll("blockquote, pre").forEach(element => {{
     const button = document.createElement("button");
     button.type = "button";
@@ -142,6 +145,22 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
     }});
 
     element.appendChild(button);
+}});
+
+
+// stdio-only Python: hide JupyterLite's next-code prompt.
+document.querySelectorAll("iframe.python-stdio").forEach(frame => {{
+    frame.addEventListener("load", () => {{
+        const style = frame.contentDocument.createElement("style");
+
+        style.textContent = `
+            .jp-CodeConsole-promptCell {{
+                display: none !important;
+            }}
+        `;
+
+        frame.contentDocument.head.appendChild(style);
+    }});
 }});
 </script>
 
@@ -174,13 +193,115 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
     if config.get("hash"):
         url += "#" + encode(config["hash"])
 
+    # return (
+    #     '<p>'
+    #     f'<iframe src="{html.escape(url, quote=True)}" '
+    #     f'title="{html.escape(title, quote=True)}" '
+    #     f'style="width: {html.escape(str(width))} !important; '
+    #     f'height: {html.escape(str(height))};"></iframe>'
+    #     '</p>'
+    # )
+
+    # Pass optional class for formatting output
+    iframe_class = config.get("class")
+    class_attr = (
+        f' class="{html.escape(iframe_class, quote=True)}"'
+        if iframe_class else ""
+    )
+
     return (
         '<p>'
-        f'<iframe src="{html.escape(url, quote=True)}" '
+        f'<iframe{class_attr} src="{html.escape(url, quote=True)}" '
         f'title="{html.escape(title, quote=True)}" '
         f'style="width: {html.escape(str(width))} !important; '
         f'height: {html.escape(str(height))};"></iframe>'
         '</p>'
+    )
+
+# def interactive_python_fence(source, language, css_class, options, md, **kwargs):
+#     """Render a Python code block using the JupyterLite single-cell REPL."""
+
+#     config = {
+#         "title": "Interactive Python",
+#         "url": JUPYTERLITE_REPL,
+#         "width": "100%",
+#         "height": "500px",
+#         "query": {
+#             "kernel": "python",
+#             "toolbar": 1,
+#             "promptCellPosition": "top",
+#             "clearCellsOnExecute": 1,
+#             "hideCodeInput": 1,
+#             "clearCodeContentOnExecute": 0,
+#             "showBanner": 0,
+#             "execute": 0,
+#             "code": source.strip(),
+#         },
+#     }
+
+#     # Reuse the normal iframe renderer rather than maintaining
+#     # a second implementation of iframe URL construction.
+#     return iframe_fence(
+#         yaml.safe_dump(config, sort_keys=False),
+#         language,
+#         css_class,
+#         options,
+#         md,
+#         **kwargs,
+#     )
+
+
+
+def python_app_fence(source, language, css_class, options, md, **kwargs):
+    """Run author-supplied Python as a small stdin/stdout app."""
+
+    config = {
+        "title": "Python App",
+        "url": JUPYTERLITE_REPL,
+        "class": "python-app",
+        "height": "500px",
+        "query": {
+            "kernel": "python",
+            "showBanner": 0,
+            "hideCodeInput": 1,
+            "code": source.strip(),
+        },
+    }
+
+    return iframe_fence(
+        yaml.safe_dump(config, sort_keys=False),
+        language,
+        css_class,
+        options,
+        md,
+        **kwargs,
+    )
+
+def interactive_python_fence(source, language, css_class, options, md, **kwargs):
+    attrs = kwargs.get("attrs", {})
+    run = "run" in attrs
+
+    config = {
+        "title": "Interactive Python",
+        "url": JUPYTERLITE_REPL,
+        "height": "500px",
+        "query": {
+            "kernel": "python",
+            "showBanner": 0,
+            "code": source.strip(),
+        },
+    }
+
+    if not run:
+        config["query"]["execute"] = 0
+
+    return iframe_fence(
+        yaml.safe_dump(config, sort_keys=False),
+        language,
+        css_class,
+        options,
+        md,
+        **kwargs,
     )
 
 def render(source, title, theme=None, exercise_position="bottom"):
@@ -203,7 +324,19 @@ def render(source, title, theme=None, exercise_position="bottom"):
             "class": "iframe",
             "format": iframe_fence,
         })
-
+    if not any(fence["name"] == "python-interactive" for fence in fences):
+        fences.append({
+            "name": "python-interactive",
+            "class": "python-interactive",
+            "format": interactive_python_fence,
+        })
+    if not any(fence["name"] == "python-app" for fence in fences):
+        fences.append({
+            "name": "python-app",
+            "class": "python-app",
+            "format": python_app_fence,
+        })
+        
     tree = markdown_publish.build_tree(
         source,
         number=False,

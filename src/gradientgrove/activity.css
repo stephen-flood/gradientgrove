@@ -747,3 +747,40 @@ pre {
     top: .5rem;
     right: .5rem;
 }
+
+
+
+
+
+.python-interactive {
+    margin: 1rem 0;
+}
+
+.python-source {
+    display: block;
+    width: 100%;
+    min-height: 10rem;
+    padding: 1rem;
+
+    font-family: monospace;
+    font-size: 1rem;
+
+    border: 1px solid var(--gg-border);
+    border-radius: 8px;
+}
+
+.python-run {
+    margin: 0.75rem 0;
+}
+
+.python-output {
+    min-height: 3rem;
+    padding: 1rem;
+
+    white-space: pre-wrap;
+    font-family: monospace;
+
+    background: var(--gg-bg);
+    border: 1px solid var(--gg-border);
+    border-radius: 8px;
+}
