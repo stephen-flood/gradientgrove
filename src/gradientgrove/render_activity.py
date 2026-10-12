@@ -48,8 +48,8 @@ THEME_VARIABLES = {
     "secondary": "--gg-secondary",
 }
 
-# JUPYTERLITE_REPL = "https://gradientgrove.com/jupyterlite/repl/index.html"
-JUPYTERLITE_REPL = "https://jupyterlite.readthedocs.io/en/stable/_static/repl/index.html"
+JUPYTERLITE_REPL = "https://gradientgrove.com/jupyterlite/repl/index.html"
+# JUPYTERLITE_REPL = "https://jupyterlite.readthedocs.io/en/stable/_static/repl/index.html"
 
 
 def theme_to_css(theme):
@@ -153,13 +153,22 @@ document.querySelectorAll("iframe.python-app").forEach(frame => {{
     frame.addEventListener("load", () => {{
         const style = frame.contentDocument.createElement("style");
 
-        // Keep program I/O, but remove JupyterLite's next-command box.
         style.textContent = `
+            /* Hide JupyterLite's next-command box. */
             .jp-CodeConsole-input {{
                 display: none !important;
             }}
-        `;
 
+            /* Hide the stdin history hint. */
+            .jp-Stdin-input::placeholder {{
+                color: transparent !important;
+            }}
+
+            /* Scale the whole app UI. */
+            body {{
+                zoom: 1.75;
+            }}
+        `;
         frame.contentDocument.head.appendChild(style);
     }});
 }});
