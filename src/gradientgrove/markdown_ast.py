@@ -620,7 +620,7 @@ backgroundcolor=\color{white!95!black},breaklines=true,keepspaces=true,showstrin
 \renewcommand{\arraystretch}{1.2}
 
 % Boxes / exercises
-\usepackage{tcolorbox}
+\usepackage[most]{tcolorbox}
 \newcounter{exercise}
 \newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
 \newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
@@ -671,25 +671,67 @@ BOOK_HEADER_TEMPLATE = Template(r"""
 \setmonofont[Scale=0.85]{TeX Gyre Cursor}
 \AtBeginDocument{\normalfont}
 
+% Parskip behavior
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8\baselineskip}
+\setlength{\RaggedRightParindent}{0pt}
+\setlength{\JustifyingParindent}{0pt}
+
+
 % Minimal Beamer compatibility for book output
-\NewDocumentEnvironment{frame}{O{} m}
-  {\par\medskip\noindent\textbf{#2}\par\smallskip}
-  {\par\medskip}
+% Preserve LaTeX's original \frame command, just in case
+\makeatletter
 
+\let\latexframe\frame
+
+% % Failed Hack to use marign footnotes inside tcolorboxes
+% \let\tuftemarginnote\marginnote
+% \let\marginnote\relax
+% \usepackage{marginnote}
+% \let\realmarginpar\marginnote
+% \let\marginnote\tuftemarginnote
+
+\renewenvironment{frame}[1][]{%
+  \@ifnextchar\bgroup{\gg@frametitled}{\gg@frameplain}%
+}{%
+  \end{tcolorbox}%
+}
+
+\newcommand{\gg@frametitled}[1]{%
+  \begin{tcolorbox}[
+    blanker,
+    breakable,
+    title={#1},
+    parbox=false,
+    coltitle=black,
+    fonttitle=\bfseries,
+%     before upper={\let\marginpar\realmarginpar}
+  ]%
+}
+
+\newcommand{\gg@frameplain}{%
+  \begin{tcolorbox}[
+    blanker,
+    parbox=false,
+    breakable,
+%     before upper={\let\marginpar\realmarginpar}
+  ]%
+}
+
+\makeatother
+
+% Other beamer replacements
 \newcommand{\pause}{}
-
 \def\alt<#1>#2#3{#2}
 \def\only<#1>#2{#2}
 \def\uncover<#1>#2{#2}
 \def\visible<#1>#2{#2}
 
 
+
 \usepackage{amsmath,amssymb,amsthm}
 
 """ + COMMON_LATEX_PREAMBLE + r"""
-
-% Things emitted by slide-oriented Markdown but meaningless in books
-\newcommand{\pause}{}
 
 % Book theorem environments
 \newtheorem{theorem}{Theorem}[chapter]

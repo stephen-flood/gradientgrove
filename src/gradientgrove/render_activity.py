@@ -32,7 +32,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from mkdocs.utils.meta import get_data
-from gradientgrove.markdown_publish import build_tree
+
+# from gradientgrove.markdown_publish import build_tree
+from gradientgrove import markdown_publish
+import yaml
+from urllib.parse import urlencode
+
 
 THEME_VARIABLES = {
     "background": "--gg-bg",
@@ -110,23 +115,96 @@ if (activity) {{
         .querySelector(`nav.top a[data-activity="${{activity}}"]`)
         ?.classList.add("active");
 
-    const step = Number(
-        new URLSearchParams(location.search).get("exercise") || 1
-    );
+    if (page.querySelector(".exercise")) {{
+        const step = Number(
+            new URLSearchParams(location.search).get("exercise") || 1
+        );
 
-    showStep(step);
-}}
+        showStep(step);
+    }}
+}
+}
+document.querySelectorAll("blockquote, pre").forEach(element => {{
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "copy-button";
+    button.textContent = "Copy";
+
+    const text = element.textContent;
+
+    button.addEventListener("click", async () => {{
+        await navigator.clipboard.writeText(text);
+
+        button.textContent = "Copied!";
+        setTimeout(() => {{
+            button.textContent = "Copy";
+        }}, 1500);
+    }});
+
+    element.appendChild(button);
+}});
 </script>
+
 
 </body>
 </html>
 """
 
 
+def iframe_fence(source, language, css_class, options, md, **kwargs):
+    config = yaml.safe_load(source) or {}
+
+    url = config["url"]
+    title = config.get("title", "Embedded content")
+
+    width = config.get("width", "100%")
+    height = config.get("height", "100%")
+    # width = config.get("width", "117.65%")
+    # height = config.get("height", "1030px")
+
+    def encode(values):
+        return urlencode({
+            key: str(value).lower() if isinstance(value, bool) else value
+            for key, value in values.items()
+        })
+
+    if config.get("query"):
+        url += "?" + encode(config["query"])
+
+    if config.get("hash"):
+        url += "#" + encode(config["hash"])
+
+    return (
+        '<p>'
+        f'<iframe src="{html.escape(url, quote=True)}" '
+        f'title="{html.escape(title, quote=True)}" '
+        f'style="width: {html.escape(str(width))} !important; '
+        f'height: {html.escape(str(height))};"></iframe>'
+        '</p>'
+    )
+
 def render(source, title, theme=None, exercise_position="bottom"):
     """Build the GradientGrove AST and render the activity HTML page."""
 
-    tree = build_tree(
+    # HACK: Add an activity-specific custom fence to the same SuperFences
+    # configuration that markdown_publish.build_tree() uses internally.
+    # `fences` is a reference to that existing list, so appending here
+    # mutates the shared configuration seen later by build_tree().
+    # This keeps the change local to render_activity.py, but is intentionally
+    # relying on shared mutable configuration rather than an explicit API.
+    fences = (
+        markdown_publish.HTML_EXTENSION_CONFIGS
+        ["pymdownx.superfences"]
+        ["custom_fences"]
+    )
+    if not any(fence["name"] == "iframe" for fence in fences):
+        fences.append({
+            "name": "iframe",
+            "class": "iframe",
+            "format": iframe_fence,
+        })
+
+    tree = markdown_publish.build_tree(
         source,
         number=False,
         render_latex_fences=True,

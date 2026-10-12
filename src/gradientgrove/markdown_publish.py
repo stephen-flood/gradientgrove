@@ -376,7 +376,7 @@ def convert_file(filename, output_directory, *,
             # author="Stephen Flood",
             author=author,
             date=date,
-            book=True,
+            book=book,
             beamer=False,
         )
 
@@ -397,7 +397,7 @@ def convert_file(filename, output_directory, *,
             # author="Stephen Flood",
             author=author,
             beamer=False,
-            book=True,
+            book=book,
         )
 
         output_file = output_directory / f"{page_name}{variant}.tex"

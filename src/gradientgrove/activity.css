@@ -733,3 +733,17 @@ td {
 .activity-stack > .activity-title {
     margin-bottom: 1rem;
 }
+
+
+/* Place click to copy button*/
+
+blockquote,
+pre {
+    position: relative;
+}
+
+.copy-button {
+    position: absolute;
+    top: .5rem;
+    right: .5rem;
+}
