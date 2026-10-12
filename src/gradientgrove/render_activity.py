@@ -109,11 +109,11 @@ const page = document.querySelector(`#activity-${{activity}}`);
 //     url.searchParams.set("exercise", n);
 //     history.replaceState(null, "", url);
 // }}
-function showStep(n) {
+function showStep(n) {{
     page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
 
     const step = page.querySelector(
-        `#activity-${activity}-step-${n}`
+        `#activity-${{activity}}-step-${{n}}`
     );
 
     step.hidden = false;
@@ -122,7 +122,7 @@ function showStep(n) {
     const url = new URL(location);
     url.searchParams.set("exercise", n);
     history.replaceState(null, "", url);
-}
+}}
 
 if (activity) {{
     document.querySelector("#landing").hidden = true;
@@ -160,9 +160,8 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
     element.appendChild(button);
 }});
 
-
 // Run python apps in a single persistent jupyterlite kernel
-async function runPythonApp(step) {
+async function runPythonApp(step) {{
     const source = step.querySelector(".python-app-source");
     if (!source) return;
 
@@ -172,46 +171,44 @@ async function runPythonApp(step) {
 
     // Wait for JupyterLite and its kernel.
     let console;
-    while (!console?.sessionContext.session?.kernel) {
+    while (!console?.sessionContext.session?.kernel) {{
         console =
             frame.contentWindow.jupyterapp
                 ?.shell.currentWidget
                 ?.console;
 
         await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    }}
 
     // Configure this iframe once.
-    if (!frame.dataset.configured) {
+    if (!frame.dataset.configured) {{
         const style = frame.contentDocument.createElement("style");
 
         style.textContent = `
-            .jp-CodeConsole-input {
+            .jp-CodeConsole-input {{
                 display: none !important;
-            }
+            }}
 
-            .jp-Stdin-input::placeholder {
+            .jp-Stdin-input::placeholder {{
                 color: transparent !important;
-            }
+            }}
 
-            body {
+            body {{
                 zoom: 1.75;
-            }
+            }}
         `;
 
         frame.contentDocument.head.appendChild(style);
         frame.dataset.configured = "true";
-    }
+    }}
 
     // Fresh user namespace by default.
-    if (source.dataset.persist !== "true") {
+    if (source.dataset.persist !== "true") {{
         await console.inject("%reset -f");
-    }
+    }}
 
     await console.inject(source.value);
-}
-
-
+}}
 </body>
 </html>
 """
@@ -306,7 +303,7 @@ def python_app_fence(source, language, css_class, options, md, **kwargs):
 
     return (
         f'<textarea class="python-app-source" '
-        f'data-persist="{str(persist).lower()}" hidden>'
+        f'data-persist="{str(persist).lower()}" hidden="hidden">'
         f'{html.escape(source)}'
         '</textarea>'
     )
