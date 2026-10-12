@@ -149,12 +149,13 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
 
 
 // stdio-only Python: hide JupyterLite's next-code prompt.
-document.querySelectorAll("iframe.python-stdio").forEach(frame => {{
+document.querySelectorAll("iframe.python-app").forEach(frame => {{
     frame.addEventListener("load", () => {{
         const style = frame.contentDocument.createElement("style");
 
+        // Keep program I/O, but remove JupyterLite's next-command box.
         style.textContent = `
-            .jp-CodeConsole-promptCell {{
+            .jp-CodeConsole-input {{
                 display: none !important;
             }}
         `;
@@ -336,7 +337,7 @@ def render(source, title, theme=None, exercise_position="bottom"):
             "class": "python-app",
             "format": python_app_fence,
         })
-        
+
     tree = markdown_publish.build_tree(
         source,
         number=False,
