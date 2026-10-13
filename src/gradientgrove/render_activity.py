@@ -481,23 +481,30 @@ def python_trace_fence(source, language, css_class, options, md, **kwargs):
         '</p>'
         '</div>'
     )
-
 def llm_chat_fence(source, language, css_class, options, md, **kwargs):
     from uuid import uuid4
 
-    config = yaml.safe_load(source)
-    chat_id = "chat-" + uuid4().hex
+    cfg = yaml.safe_load(source)
+    models = [dict(name=m) if isinstance(m, str) else m for m in cfg["models"]]
+    cfg["models"] = {m["name"]: m for m in models}
 
-    program = f"CHAT_ID = {chat_id!r}\nCFG = {config!r}\n" + """
+    key_html = (
+        '<label>API key: <input type="password" class="llm-key" '
+        'placeholder="Optional: use your own key" autocomplete="off"></label>'
+        if cfg.get("key_field") else ""
+    )
+
+    cid = "chat-" + uuid4().hex
+
+    code = f"CID={cid!r}\nCFG={cfg!r}\n" + r"""
 import json, builtins
 from js import document
 from pyodide.http import pyfetch
 from pyodide.ffi import create_proxy
 
 def setup():
-    root = document.getElementById(CHAT_ID)
-    # if root.dataset.ready == "true":
-    if root.getAttribute("data-ready") == "true":
+    root = document.getElementById(CID)
+    if root.hasAttribute("data-ready"):
         return
 
     log = root.querySelector(".llm-messages")
@@ -506,6 +513,7 @@ def setup():
     send_btn = root.querySelector(".llm-send")
     clear_btn = root.querySelector(".llm-clear")
     history = []
+    cfg = CFG
 
     def clear(event=None):
         history.clear()
@@ -517,78 +525,110 @@ def setup():
         if not text or send_btn.disabled:
             return
 
-        send_btn.disabled = clear_btn.disabled = model.disabled = True
+        for el in (send_btn, clear_btn, model):
+            el.disabled = True
         prompt.value = ""
-        log.insertAdjacentText("beforeend", f"You: {text}\\n\\n")
-
-        messages = history + [{"role": "user", "content": text}]
-        if CFG.get("system"):
-            messages.insert(0, {"role": "system", "content": CFG["system"]})
+        log.insertAdjacentText("beforeend", f"You: {text}\n\n")
 
         try:
+            spec = cfg["models"][model.value]
+            api = spec.get("api", cfg.get("api", "chat"))
+            url = (spec.get("endpoint") or cfg["endpoint"]).rstrip("/")
+            for suffix in ("/chat/completions", "/completions"):
+                if url.endswith(suffix):
+                    url = url[:-len(suffix)]
+                    break
+            url += {"chat": "/chat/completions",
+                    "completion": "/completions"}[api]
+
+            messages = history + [{"role": "user", "content": text}]
+            if cfg.get("system"):
+                messages.insert(0, {"role": "system", "content": cfg["system"]})
+
+            payload = {"model": model.value, **cfg.get("parameters", {}),
+                       **spec.get("parameters", {})}
+            for el in root.querySelectorAll(".llm-control"):
+                payload[el.getAttribute("data-param")] = json.loads(el.value)
+
+            if api == "chat":
+                payload["messages"] = messages
+            else:
+                payload["prompt"] = "\n".join(
+                    f"{m['role'].capitalize()}: {m['content']}"
+                    for m in messages
+                ) + "\nAssistant:"
+
+            # r = await pyfetch(url, method="POST",
+            #     headers={"Content-Type": "application/json"},
+            #     body=json.dumps(payload))
+            key_input = root.querySelector(".llm-key")
+            key = (key_input.value.strip() if key_input else "") or \
+                spec.get("api_key", cfg.get("api_key", ""))
+
+            headers = {"Content-Type": "application/json"}
+            if key:
+                headers["Authorization"] = f"Bearer {key}"
+
             r = await pyfetch(
-                CFG["endpoint"],
-                method="POST",
-                headers={"Content-Type": "application/json"},
-                body=json.dumps({
-                    "model": model.value,
-                    "messages": messages,
-                    "stream": False
-                })
+                url, method="POST",
+                headers=headers,
+                body=json.dumps(payload)
             )
+
             r.raise_for_status()
-            answer = (await r.json())["choices"][0]["message"]["content"]
+            choice = (await r.json())["choices"][0]
+            answer = choice["message"]["content"] if api == "chat" else choice["text"]
 
-            history.extend([
-                {"role": "user", "content": text},
-                {"role": "assistant", "content": answer}
-            ])
-            log.insertAdjacentText("beforeend", f"Model: {answer}\\n\\n")
-
+            history.extend([{"role": "user", "content": text},
+                            {"role": "assistant", "content": answer}])
+            log.insertAdjacentText("beforeend", f"Model: {answer}\n\n")
         except Exception as e:
-            log.insertAdjacentText("beforeend", f"Error: {e}\\n\\n")
+            log.insertAdjacentText("beforeend", f"Error: {e}\n\n")
         finally:
-            send_btn.disabled = clear_btn.disabled = model.disabled = False
+            for el in (send_btn, clear_btn, model):
+                el.disabled = False
             log.scrollTop = log.scrollHeight
 
     callbacks = [create_proxy(send), create_proxy(clear)]
-    send_btn.addEventListener("click", callbacks[0])
-    clear_btn.addEventListener("click", callbacks[1])
-    model.addEventListener("change", callbacks[1])
+    for el, event, callback in (
+        (send_btn, "click", callbacks[0]),
+        (clear_btn, "click", callbacks[1]),
+        (model, "change", callbacks[1])
+    ):
+        el.addEventListener(event, callback)
 
-    builtins._gg_chat_handlers = (
-        getattr(builtins, "_gg_chat_handlers", []) + callbacks
-    )
-    # root.dataset.ready = "true"
+    builtins._gg_chat_handlers = getattr(builtins, "_gg_chat_handlers", []) + callbacks
     root.setAttribute("data-ready", "true")
 
 setup()
 """
 
-    models = "".join(
-        f'<option value="{html.escape(str(m), quote=True)}">'
-        f'{html.escape(str(m))}</option>'
-        for m in config["models"]
+    options_html = "".join(
+        f'<option>{html.escape(str(m["name"]))}</option>' for m in models
+    )
+    controls_html = "".join(
+        f'<label>{html.escape(k)} <input type="number" class="llm-control" '
+        f'data-param="{html.escape(k, quote=True)}" '
+        f'min="{v["min"]}" max="{v["max"]}" step="{v.get("step", 1)}" '
+        f'value="{cfg.get("parameters", {}).get(k, v["min"])}"></label>'
+        for k, v in cfg.get("controls", {}).items()
     )
 
     return (
-        f'<div class="python-app llm-chat" id="{chat_id}">'
-        '<textarea class="python-app-source" hidden="hidden">'
-        f'{html.escape(program)}</textarea>'
-        '<label>Model: <select class="llm-model">'
-        f'{models}</select></label>'
+        f'<div class="python-app llm-chat" id="{cid}">'
+        f'<textarea class="python-app-source" hidden="hidden">'
+        f'{html.escape(code)}</textarea>'
+        f'<label>Model: <select class="llm-model">{options_html}</select></label>'
+        f'{key_html}'
+        f'<div class="llm-controls">{controls_html}</div>'
         '<div class="llm-messages" aria-live="polite"></div>'
-        '<textarea class="llm-prompt" rows="3" '
-        'placeholder="Enter your message"></textarea>'
+        '<textarea class="llm-prompt" rows="3" placeholder="Your message"></textarea>'
         '<div class="llm-actions">'
         '<button type="button" class="llm-send">Send</button>'
         '<button type="button" class="llm-clear">Clear</button>'
-        '</div>'
-        '<div class="python-app-output"></div>'
-        '</div>'
-        '<p class="tool-credit">Powered by '
-        '<a href="https://pyodide.org/">Pyodide</a>.</p>'
+        '</div><div class="python-app-output"></div></div>'
     )
+
 
 def render(source, title, theme=None, exercise_position="bottom"):
     """Build the GradientGrove AST and render the activity HTML page."""

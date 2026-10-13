@@ -835,3 +835,10 @@ pre {
     color: #b33;
     white-space: pre-wrap;
 }
+
+.llm-key {
+    font: inherit;
+    padding: 0.5rem;
+    border: 1px solid var(--gg-border);
+    border-radius: 8px;
+}
