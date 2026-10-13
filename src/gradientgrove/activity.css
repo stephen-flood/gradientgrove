@@ -784,3 +784,10 @@ pre {
     border: 1px solid var(--gg-border);
     border-radius: 8px;
 }
+
+.tool-credit {
+    font-size: 0.75rem;
+    color: var(--gg-muted);
+    text-align: right;
+    margin-top: 0.25rem;
+}

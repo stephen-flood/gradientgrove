@@ -82,14 +82,6 @@ HTML_TEMPLATE = """<!doctype html>
 </head>
 
 <body>
-<div id="python-app-frame" hidden>
-    <iframe
-        class="python-app"
-        src="/jupyterlite/repl/index.html?kernel=python&execute=0&showBanner=0&hideCodeInput=1&clearCellsOnExecute=1"
-        title="Python App"
-        style="width: 100%; height: 500px;">
-    </iframe>
-</div>
 
 <nav class="top">
 <a href="?">Home</a>
@@ -106,6 +98,8 @@ HTML_TEMPLATE = """<!doctype html>
 
 </main>
 
+<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
+
 <script>
 const activity = new URLSearchParams(location.search).get("activity");
 const page = document.querySelector(`#activity-${{activity}}`);
@@ -119,6 +113,10 @@ const page = document.querySelector(`#activity-${{activity}}`);
 //     history.replaceState(null, "", url);
 // }}
 function showStep(n) {{
+
+    globalThis.cancelPythonInput?.();
+    globalThis.cancelPythonInput = null;
+
     page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
 
     const step = page.querySelector(
@@ -126,7 +124,12 @@ function showStep(n) {{
     );
 
     step.hidden = false;
-    runPythonApp(step);
+    
+    // Run python app if present
+    step.querySelectorAll(".python-app").forEach(app => {{
+        delete app.dataset.ran;
+    }});
+    setTimeout(runVisiblePythonApps, 0);
 
     const url = new URL(location);
     url.searchParams.set("exercise", n);
@@ -169,102 +172,114 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
     element.appendChild(button);
 }});
 
-// One shared Pyodide instance for every python-app on the page.
+// One interpreter shared by every Python app.
 let pythonAppPyodide = null;
 let pythonAppNamespace = null;
+let pythonAppQueue = Promise.resolve();
+
 let pythonAppOutput = null;
 
+globalThis.pythonAppInput = prompt => new Promise((resolve, reject) =>  {{
 
-// Create an inline input box and wait for Enter.
-globalThis.pythonAppInput = function(prompt = "") {{
-    return new Promise(resolve => {{
-        const row = document.createElement("div");
+    globalThis.cancelPythonInput = () =>
+        reject(new Error("Input cancelled"));
 
-        const label = document.createElement("span");
-        label.textContent = prompt;
+    const row = document.createElement("div");
+    const label = document.createElement("span");
+    const input = document.createElement("input");
 
-        const input = document.createElement("input");
-        input.type = "text";
+    label.textContent = prompt;
+    input.type = "text";
 
-        row.append(label, input);
-        pythonAppOutput.appendChild(row);
+    row.append(label, input);
+    pythonAppOutput.append(row);
 
-        input.addEventListener("keydown", event => {{
-            if (event.key !== "Enter") return;
+    input.addEventListener("keydown", event => {{
+        if (event.key !== "Enter") return;
 
-            event.preventDefault();
-            input.disabled = true;
-            resolve(input.value);
-        }});
+        event.preventDefault();
+        input.disabled = true;
+        
+        globalThis.cancelPythonInput = null;
 
-        input.focus();
+        resolve(input.value);
     }});
-}};
 
+    input.focus();
+}});
 
-// Load Pyodide once and make ordinary Python input() use our inline box.
-async function getPythonAppPyodide() {{
-    if (pythonAppPyodide) return pythonAppPyodide;
+function runVisiblePythonApps() {{
+    for (const app of document.querySelectorAll(".python-app:not(.python-edit)")) {{
+        if (app.dataset.ran || !app.getClientRects().length) continue;
 
-    pythonAppPyodide = await loadPyodide();
-
-    await pythonAppPyodide.runPythonAsync(`
-import builtins
-from js import pythonAppInput
-from pyodide.ffi import run_sync
-
-def _python_app_input(prompt=""):
-    return run_sync(pythonAppInput(prompt))
-
-builtins.input = _python_app_input
-`);
-
-    return pythonAppPyodide;
+        app.dataset.ran = "true";
+        pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+    }}
 }}
 
-
-// Run the python-app contained in this activity/exercise.
-async function runPythonApp(scope) {{
-    const app = scope.matches?.(".python-app")
-        ? scope
-        : scope.querySelector(".python-app");
-
-    if (!app) return;
-
-    const source = app.querySelector(".python-app-source");
+async function runPythonApp(app) {{
     const output = app.querySelector(".python-app-output");
-
+    
     pythonAppOutput = output;
-    output.replaceChildren();
 
-    const pyodide = await getPythonAppPyodide();
+    const source = app.querySelector(".python-app-source").value;
 
-    // stdout and stderr go into this app's output box.
     const write = text =>
         output.append(document.createTextNode(text + "\\n"));
 
-    pyodide.setStdout({{
-        batched: write
-    }});
-
-    pyodide.setStderr({{
-        batched: write
-    }});
-
-    // Default: fresh user namespace.
-    // {persist} reuses the namespace from the previous app.
-    if (!pythonAppNamespace || source.dataset.persist !== "true") {{
-        pythonAppNamespace = pyodide.runPython("dict()");
-    }}
+    output.replaceChildren();
 
     try {{
-        await pyodide.runPythonAsync(source.value, {{
+        pythonAppPyodide ??= loadPyodide();
+        const pyodide = await pythonAppPyodide;
+
+        pyodide.setStdout({{ batched: write }});
+        pyodide.setStderr({{ batched: write }});
+        //pyodide.setStdin({{
+        //    stdin: () => window.prompt("Python input:") ?? ""
+        //}});
+
+        // Make Python input() wait for our inline field.
+        await pyodide.runPythonAsync(`
+        import builtins
+        from js import pythonAppInput
+        from pyodide.ffi import run_sync
+
+        def _inline_input(prompt=""):
+            return run_sync(pythonAppInput(prompt))
+
+        builtins.input = _inline_input
+        `);
+
+        // Reset variables unless {{persist}} is specified.
+        if (!pythonAppNamespace || app.dataset.persist !== "true") {{
+            pythonAppNamespace?.destroy();
+            pythonAppNamespace = pyodide.runPython("dict()");
+        }}
+
+        await pyodide.runPythonAsync(source, {{
             globals: pythonAppNamespace
         }});
     }} catch (error) {{
         write(String(error));
     }}
 }}
+
+// Autorun apps on the landing page or selected activity.
+setTimeout(runVisiblePythonApps, 0);
+
+// Also run apps revealed inside expandable details.
+document.addEventListener("toggle", () => {{
+    setTimeout(runVisiblePythonApps, 0);
+}}, true);
+
+
+document.addEventListener("click", event => {{
+    const app = event.target.closest(".python-run")?.closest(".python-edit");
+    if (!app) return;
+
+    pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+}});
 </script>
 
 </body>
@@ -353,30 +368,57 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
 #     )
 
 
+# def python_app_fence(source, language, css_class, options, md, **kwargs):
+#     persist = "persist" in kwargs.get("attrs", {})
+
+#     return (
+#         f'<div class="python-app-slot" '
+#         f'data-persist="{str(persist).lower()}">'
+#         f'<textarea class="python-app-source" hidden="hidden">'
+#         f'{html.escape(source)}'
+#         f'</textarea>'
+#         f'</div>'
+#     )
 def python_app_fence(source, language, css_class, options, md, **kwargs):
     persist = "persist" in kwargs.get("attrs", {})
 
     return (
-        f'<div class="python-app-slot" '
-        f'data-persist="{str(persist).lower()}">'
-        f'<textarea class="python-app-source" hidden="hidden">'
+        f'<div class="python-app" data-persist="{str(persist).lower()}">'
+        '<textarea class="python-app-source" hidden="hidden">'
         f'{html.escape(source)}'
-        f'</textarea>'
-        f'</div>'
+        '</textarea>'
+        '<div class="python-app-output python-output"></div>'
+        '</div>'
+        '<p class="tool-credit">Powered by '
+        '<a href="https://pyodide.org/">Pyodide</a>.</p>'
     )
-
 
 def interactive_python_fence(source, language, css_class, options, md, **kwargs):
     attrs = kwargs.get("attrs", {})
     run = "run" in attrs
 
+    # config = {
+    #     "title": "Interactive Python",
+    #     "url": JUPYTERLITE_REPL,
+    #     "height": "500px",
+    #     "query": {
+    #         "kernel": "python",
+    #         "showBanner": 0,
+    #         "code": source.strip(),
+    #     },
     config = {
         "title": "Interactive Python",
         "url": JUPYTERLITE_REPL,
-        "height": "500px",
+        "height": "600px",
+        # "height" : "100%",
         "query": {
             "kernel": "python",
-            "showBanner": 0,
+            "toolbar": 1,
+            "showBanner": 1,
+            "hideCodeInput": 1,
+            "clearCellsOnExecute": 0,
+            "clearCodeContentOnExecute": 0,
+            "promptCellPosition": "top",
             "code": source.strip(),
         },
     }
@@ -384,13 +426,60 @@ def interactive_python_fence(source, language, css_class, options, md, **kwargs)
     if not run:
         config["query"]["execute"] = 0
 
+    # return iframe_fence(
+    #     yaml.safe_dump(config, sort_keys=False),
+    #     language,
+    #     css_class,
+    #     options,
+    #     md,
+    #     **kwargs,
+    # )
+
     return iframe_fence(
         yaml.safe_dump(config, sort_keys=False),
-        language,
-        css_class,
-        options,
-        md,
-        **kwargs,
+        language, css_class, options, md, **kwargs,
+    ) + (
+        '<p class="tool-credit">Powered by '
+        '<a href="https://jupyterlite.readthedocs.io/">'
+        'JupyterLite</a>.</p>'
+    )
+
+def python_edit_fence(source, language, css_class, options, md, **kwargs):
+    return (
+        '<div class="python-app python-edit" data-persist="false">'
+        '<textarea class="python-app-source python-source">'
+        f'{html.escape(source)}</textarea>'
+        '<button type="button" class="python-run">Run</button>'
+        '<div class="python-app-output python-output"></div>'
+        '</div>'
+        '<p class="tool-credit">Powered by '
+        '<a href="https://pyodide.org/">Pyodide</a>.</p>'
+    )
+
+
+def python_trace_fence(source, language, css_class, options, md, **kwargs):
+    params = urlencode({
+        "code": source.strip(),
+        "mode": "display",
+        "py": "311",
+    })
+
+    url = "https://pythontutor.com/iframe-embed.html#" + params
+
+    return (
+        '<div class="python-trace">'
+        f'<iframe src="{html.escape(url, quote=True)}" '
+        'title="Python Tutor Code Trace" '
+        'loading="lazy" '
+        'style="display:block; width:100% !important; '
+        'height:550px !important; transform:none !important; '
+        'border:0"></iframe>'
+        '<p class="tool-credit">'
+        'Visualization powered by '
+        '<a href="https://pythontutor.com/">Python Tutor</a> '
+        '(Philip Guo).'
+        '</p>'
+        '</div>'
     )
 
 def render(source, title, theme=None, exercise_position="bottom"):
@@ -425,7 +514,19 @@ def render(source, title, theme=None, exercise_position="bottom"):
             "class": "python-app",
             "format": python_app_fence,
         })
-
+    if not any(f["name"] == "python-edit" for f in fences):
+        fences.append({
+            "name": "python-edit",
+            "class": "python-edit",
+            "format": python_edit_fence,
+        })
+    if not any(f["name"] == "python-trace" for f in fences):
+        fences.append({
+            "name": "python-trace",
+            "class": "python-trace",
+            "format": python_trace_fence,
+        })
+        
     tree = markdown_publish.build_tree(
         source,
         number=False,
@@ -706,26 +807,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
         # )            
 
         exercise_body = "".join(steps_html)
-
-
-        # Python apps in an activity share one JupyterLite/Pyodide kernel.
-        if "python-app-source" in exercise_body:
-            activity_body += iframe_fence(
-                yaml.safe_dump({
-                    "title": "Python App",
-                    "url": JUPYTERLITE_REPL,
-                    "class": "python-app",
-                    "height": "500px",
-                    "query": {
-                        "kernel": "python",
-                        "execute": 0,
-                        "showBanner": 0,
-                        "hideCodeInput": 1,
-                        "clearCellsOnExecute": 1,
-                    },
-                }),
-                "", "", {}, None,
-            )
 
         activity_content = (
             f'<div class="activity-content">'
