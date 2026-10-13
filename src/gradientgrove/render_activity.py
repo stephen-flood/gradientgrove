@@ -482,6 +482,114 @@ def python_trace_fence(source, language, css_class, options, md, **kwargs):
         '</div>'
     )
 
+def llm_chat_fence(source, language, css_class, options, md, **kwargs):
+    from uuid import uuid4
+
+    config = yaml.safe_load(source)
+    chat_id = "chat-" + uuid4().hex
+
+    program = f"CHAT_ID = {chat_id!r}\nCFG = {config!r}\n" + """
+import json, builtins
+from js import document
+from pyodide.http import pyfetch
+from pyodide.ffi import create_proxy
+
+def setup():
+    root = document.getElementById(CHAT_ID)
+    # if root.dataset.ready == "true":
+    if root.getAttribute("data-ready") == "true":
+        return
+
+    log = root.querySelector(".llm-messages")
+    prompt = root.querySelector(".llm-prompt")
+    model = root.querySelector(".llm-model")
+    send_btn = root.querySelector(".llm-send")
+    clear_btn = root.querySelector(".llm-clear")
+    history = []
+
+    def clear(event=None):
+        history.clear()
+        log.replaceChildren()
+        prompt.value = ""
+
+    async def send(event):
+        text = prompt.value.strip()
+        if not text or send_btn.disabled:
+            return
+
+        send_btn.disabled = clear_btn.disabled = model.disabled = True
+        prompt.value = ""
+        log.insertAdjacentText("beforeend", f"You: {text}\\n\\n")
+
+        messages = history + [{"role": "user", "content": text}]
+        if CFG.get("system"):
+            messages.insert(0, {"role": "system", "content": CFG["system"]})
+
+        try:
+            r = await pyfetch(
+                CFG["endpoint"],
+                method="POST",
+                headers={"Content-Type": "application/json"},
+                body=json.dumps({
+                    "model": model.value,
+                    "messages": messages,
+                    "stream": False
+                })
+            )
+            r.raise_for_status()
+            answer = (await r.json())["choices"][0]["message"]["content"]
+
+            history.extend([
+                {"role": "user", "content": text},
+                {"role": "assistant", "content": answer}
+            ])
+            log.insertAdjacentText("beforeend", f"Model: {answer}\\n\\n")
+
+        except Exception as e:
+            log.insertAdjacentText("beforeend", f"Error: {e}\\n\\n")
+        finally:
+            send_btn.disabled = clear_btn.disabled = model.disabled = False
+            log.scrollTop = log.scrollHeight
+
+    callbacks = [create_proxy(send), create_proxy(clear)]
+    send_btn.addEventListener("click", callbacks[0])
+    clear_btn.addEventListener("click", callbacks[1])
+    model.addEventListener("change", callbacks[1])
+
+    builtins._gg_chat_handlers = (
+        getattr(builtins, "_gg_chat_handlers", []) + callbacks
+    )
+    # root.dataset.ready = "true"
+    root.setAttribute("data-ready", "true")
+
+setup()
+"""
+
+    models = "".join(
+        f'<option value="{html.escape(str(m), quote=True)}">'
+        f'{html.escape(str(m))}</option>'
+        for m in config["models"]
+    )
+
+    return (
+        f'<div class="python-app llm-chat" id="{chat_id}">'
+        '<textarea class="python-app-source" hidden="hidden">'
+        f'{html.escape(program)}</textarea>'
+        '<label>Model: <select class="llm-model">'
+        f'{models}</select></label>'
+        '<div class="llm-messages" aria-live="polite"></div>'
+        '<textarea class="llm-prompt" rows="3" '
+        'placeholder="Enter your message"></textarea>'
+        '<div class="llm-actions">'
+        '<button type="button" class="llm-send">Send</button>'
+        '<button type="button" class="llm-clear">Clear</button>'
+        '</div>'
+        '<div class="python-app-output"></div>'
+        '</div>'
+        '<p class="tool-credit">Powered by '
+        '<a href="https://pyodide.org/">Pyodide</a>.</p>'
+    )
+
 def render(source, title, theme=None, exercise_position="bottom"):
     """Build the GradientGrove AST and render the activity HTML page."""
 
@@ -526,7 +634,13 @@ def render(source, title, theme=None, exercise_position="bottom"):
             "class": "python-trace",
             "format": python_trace_fence,
         })
-        
+    if not any(f["name"] == "llm-chat" for f in fences):
+        fences.append({
+            "name": "llm-chat",
+            "class": "llm-chat",
+            "format": llm_chat_fence,
+        })        
+
     tree = markdown_publish.build_tree(
         source,
         number=False,
