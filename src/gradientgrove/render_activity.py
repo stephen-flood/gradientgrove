@@ -152,6 +152,27 @@ if (activity) {{
         showStep(step);
     }}
 }}
+if ("{arrow_navigation}" === "exercises" && page) {{
+    page.querySelectorAll(".activity-arrow").forEach(arrow => {{
+        arrow.addEventListener("click", event => {{
+            const delta = arrow.classList.contains("activity-arrow-right") ? 1 : -1;
+            const current = Number(new URLSearchParams(location.search).get("exercise") || 1);
+            const next = current + delta;
+            const count = page.querySelectorAll(".exercise").length;
+
+            if (next >= 1 && next <= count) {{
+                event.preventDefault();
+                showStep(next);
+            }} else if (delta < 0 && Number(activity) > 1) {{
+                event.preventDefault();
+                const previous = Number(activity) - 1;
+                const last = document.querySelector(`#activity-${{previous}}`)
+                    .querySelectorAll(".exercise").length || 1;
+                location.href = `?activity=${{previous}}&exercise=${{last}}`;
+            }}
+        }});
+    }});
+}}
 document.querySelectorAll("blockquote, pre").forEach(element => {{
     const button = document.createElement("button");
     button.type = "button";
@@ -406,8 +427,10 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     async function ask(turn, allowTools = true, onChunk = () => {}) {
         const spec = cfg.models[model.value];
         const api = spec.api || cfg.api || "chat";
-        const messages = cfg.system
-            ? [{role: "system", content: cfg.system}, ...turn]
+        
+        const system = root.querySelector(".llm-system")?.value ?? cfg.system;
+        const messages = system
+            ? [{role: "system", content: system}, ...turn]
             : turn;
 
         const payload = {
@@ -946,6 +969,12 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             if cfg.get("key_field") else ""
         )
 
+        system_html = (
+            '<label>System prompt: <textarea class="llm-system" rows="2">'
+            f'{html.escape(str(cfg.get("system", "")))}</textarea></label>'
+            if cfg.get("show_system_prompt") else ""
+        )
+
         return (
             '<div class="llm-chat">'
             f'<textarea class="llm-config" hidden="hidden">'
@@ -953,6 +982,7 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             f'<label>Model: '
             f'<select class="llm-model">{options_html}</select></label>'
             f'{key_html}'
+            f'{system_html}'
             f'<div class="llm-controls">{controls_html}</div>'
             '<div class="llm-messages" aria-live="polite"></div>'
             '<textarea class="llm-prompt" rows="3" '
@@ -975,7 +1005,8 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             '</div>'
         )
 
-def render(source, title, theme=None, exercise_position="bottom"):
+def render(source, title, theme=None, exercise_position="bottom",
+           arrow_navigation="activities"):
     """Build the GradientGrove AST and render the activity HTML page."""
 
     # HACK: Add an activity-specific custom fence to the same SuperFences
@@ -1241,6 +1272,7 @@ def render(source, title, theme=None, exercise_position="bottom"):
         activities="\n".join(activity_html),
         pyodide_js=PYODIDE_JS,
         llm_chat_js=LLM_CHAT_JS,
+        arrow_navigation=arrow_navigation,
     )
 
 
@@ -1270,8 +1302,12 @@ def main():
     if exercise_position not in {"top", "bottom"}:
         exercise_position = "bottom"
 
+    arrow_navigation = str(metadata.get("navigation", "activities")).lower()
+    if arrow_navigation not in {"activities", "exercises"}:
+        arrow_navigation = "activities"
+        
     output.write_text(
-        render(source, title, theme, exercise_position),
+        render(source, title, theme, exercise_position, arrow_navigation),
         encoding="utf-8",
     )
 
