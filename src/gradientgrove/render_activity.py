@@ -333,17 +333,50 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     run.type = "button";
     run.textContent = "Run tool";
     run.hidden = true;
-    clear.before(run);
+    //clear.before(run);
+    run.className = "llm-run";
 
     let history = [];
     let pending = null;
     let namespace = null;
 
+    // function write(text) {
+    //     log.append(document.createTextNode(text + "\n\n"));
+    //     log.scrollTop = log.scrollHeight;
+    // }
+
     function write(text) {
-        log.append(document.createTextNode(text + "\n\n"));
+        const types = [
+            ["You: ", "user"],
+            ["Model: ", "agent"],
+            ["Tool requested: ", "tool-call"],
+            ["Running tool: ", "tool-running"],
+            ["Tool result: ", "tool-result"],
+            ["Python: ", "python"],
+            ["Error: ", "error"]
+        ];
+
+        const entry = document.createElement("div");
+        const match = types.find(([prefix]) => text.startsWith(prefix));
+
+        entry.className = "llm-message llm-" + (match?.[1] || "info");
+
+        if (match) {
+            const label = document.createElement("strong");
+            label.textContent = match[0];
+            entry.append(label, document.createTextNode(text.slice(match[0].length)));
+        } else {
+            entry.textContent = text;
+        }
+        
+        if (match?.[1] === "tool-call") {
+            entry.append(run);
+        }
+
+        log.append(entry);
         log.scrollTop = log.scrollHeight;
     }
-
+    
     function responseError(message, response) {
         return new Error(
             message + "\nModel response:\n" +
@@ -509,6 +542,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         const call = pending;
         busy(true);
         write("Running tool: " + call.function.name);
+        const box = log.lastElementChild;
         try {
             let content;
             try {
@@ -522,7 +556,10 @@ document.querySelectorAll(".llm-chat").forEach(root => {
                 return;
             }
             history.push({role: "tool", tool_call_id: call.id, content});
-            write("Tool result: " + content);
+            
+            //write("Tool result: " + content);
+            box.append(document.createTextNode("\nTool result: " + content));
+            box.classList.replace("llm-tool-running", "llm-tool-result");
 
             const {choice} = await ask(history, false);
             const message = choice.message;

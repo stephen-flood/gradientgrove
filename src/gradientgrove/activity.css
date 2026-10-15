@@ -842,3 +842,74 @@ pre {
     border: 1px solid var(--gg-border);
     border-radius: 8px;
 }
+
+/* Individual chat messages */
+
+.llm-message {
+    margin-bottom: 0.7rem;
+    padding: 0.65rem 0.85rem;
+    border-left: 4px solid var(--gg-border);
+    border-radius: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.llm-message:last-child {
+    margin-bottom: 0;
+}
+
+.llm-message strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.9rem;
+}
+
+/* User */
+.llm-user {
+    background: color-mix(in srgb, var(--gg-primary) 10%, white);
+    border-left-color: var(--gg-primary);
+}
+
+/* Model / agent */
+.llm-agent {
+    background: var(--gg-bg);
+    border-left-color: var(--gg-secondary);
+}
+
+/* Tool request */
+.llm-tool-result {
+    background: color-mix(in srgb, var(--gg-accent) 12%, white);
+    border-left-color: var(--gg-accent);
+}
+
+/* Tool response */
+.llm-tool-call {
+    background: color-mix(in srgb, var(--gg-bg));
+    border-left-color: var(--gg-secondary);
+}
+
+/* Tool execution and Python output */
+.llm-tool-running,
+.llm-python {
+    background: var(--gg-bg);
+    color: var(--gg-muted);
+}
+
+/* Errors */
+.llm-error {
+    background: #fff0f0;
+    border-left-color: #b33;
+}
+
+/* Code-like output */
+.llm-tool-call,
+.llm-tool-result,
+.llm-python {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.llm-tool-call .llm-run:not([hidden]) {
+    display: block;
+    margin-top: 0.75rem;
+}
