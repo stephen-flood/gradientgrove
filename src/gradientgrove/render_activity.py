@@ -68,138 +68,6 @@ def theme_to_css(theme):
 
     return ":root { " + " ".join(declarations) + " }"
 
-PYODIDE_JS = r"""
-<script>
-function getPyodide() {
-    pythonAppPyodide ??= (async () => {
-        const base = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
-        if (!globalThis.loadPyodide) {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement("script");
-                script.src = base + "pyodide.js";
-                script.onload = resolve;
-                script.onerror = () => {
-                    script.remove();
-                    reject(new Error("Could not load Pyodide. Please try again."));
-                };
-                document.head.append(script);
-            });
-        }
-        return globalThis.loadPyodide({indexURL: base});
-    })().catch(error => {
-        pythonAppPyodide = null;
-        throw error;
-    });
-    return pythonAppPyodide;
-}
-
-// One interpreter shared by every Python app.
-let pythonAppPyodide = null;
-let pythonAppNamespace = null;
-let pythonAppQueue = Promise.resolve();
-
-let pythonAppOutput = null;
-
-globalThis.pythonAppInput = prompt => new Promise((resolve, reject) =>  {
-
-    globalThis.cancelPythonInput = () =>
-        reject(new Error("Input cancelled"));
-
-    const row = document.createElement("div");
-    const label = document.createElement("span");
-    const input = document.createElement("input");
-
-    label.textContent = prompt;
-    input.type = "text";
-
-    row.append(label, input);
-    pythonAppOutput.append(row);
-
-    input.addEventListener("keydown", event => {
-        if (event.key !== "Enter") return;
-
-        event.preventDefault();
-        input.disabled = true;
-        
-        globalThis.cancelPythonInput = null;
-
-        resolve(input.value);
-    });
-
-    input.focus();
-});
-
-function runVisiblePythonApps() {
-    for (const app of document.querySelectorAll(".python-app:not(.python-edit)")) {
-        if (app.dataset.ran || !app.getClientRects().length) continue;
-
-        app.dataset.ran = "true";
-        pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
-    }
-}
-
-async function runPythonApp(app) {
-    const output = app.querySelector(".python-app-output");
-    
-    pythonAppOutput = output;
-
-    const source = app.querySelector(".python-app-source").value;
-
-    const write = text =>
-        output.append(document.createTextNode(text + "\\n"));
-
-    output.replaceChildren();
-
-    try {
-        const pyodide = await getPyodide();
-
-        pyodide.setStdout({ batched: write });
-        pyodide.setStderr({ batched: write });
-
-        // Make Python input() wait for our inline field.
-        await pyodide.runPythonAsync(`
-        import builtins
-        from js import pythonAppInput
-        from pyodide.ffi import run_sync
-
-        def _inline_input(prompt=""):
-            return run_sync(pythonAppInput(prompt))
-
-        builtins.input = _inline_input
-        `);
-
-        // Reset variables unless {persist} is specified.
-        if (!pythonAppNamespace || app.dataset.persist !== "true") {
-            pythonAppNamespace?.destroy();
-            pythonAppNamespace = pyodide.runPython("dict()");
-        }
-
-        await pyodide.runPythonAsync(source, {
-            globals: pythonAppNamespace
-        });
-    } catch (error) {
-        write(String(error));
-    }
-}
-
-// Autorun apps on the landing page or selected activity.
-setTimeout(runVisiblePythonApps, 0);
-
-// Also run apps revealed inside expandable details.
-document.addEventListener("toggle", () => {
-    setTimeout(runVisiblePythonApps, 0);
-}, true);
-
-
-document.addEventListener("click", event => {
-    const app = event.target.closest(".python-run")?.closest(".python-edit");
-    if (!app) return;
-
-    pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
-});
-</script>
-"""
-
 HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -305,119 +173,483 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
 }});
 </script>
 
-{PYODIDE_JS}
+<script>
+{pyodide_js}
+</script>
 
 <script>
-// LLM chat
-document.querySelectorAll(".llm-chat").forEach(root => {{
-    const cfg = JSON.parse(root.querySelector(".llm-config").value);
-    const log = root.querySelector(".llm-messages");
-    const prompt = root.querySelector(".llm-prompt");
-    const model = root.querySelector(".llm-model");
-    const send = root.querySelector(".llm-send");
-    const clear = root.querySelector(".llm-clear");
-    let history = [];
-
-    function reset() {{
-        history = [];
-        log.replaceChildren();
-        prompt.value = "";
-    }}
-
-    clear.onclick = reset;
-    model.onchange = reset;
-
-    send.onclick = async () => {{
-        const text = prompt.value.trim();
-        if (!text) return;
-
-        const spec = cfg.models[model.value];
-        const api = spec.api || cfg.api || "chat";
-
-        const messages = [
-            ...history,
-            {{role: "user", content: text}}
-        ];
-
-        if (cfg.system)
-            messages.unshift({{role: "system", content: cfg.system}});
-
-        const payload = {{
-            model: model.value,
-            ...cfg.parameters,
-            ...spec.parameters
-        }};
-
-        root.querySelectorAll(".llm-control").forEach(control => {{
-            payload[control.dataset.param] = Number(control.value);
-        }});
-
-        if (api === "chat") {{
-            payload.messages = messages;
-        }} else {{
-            payload.prompt = messages
-                .map(m => `${{m.role}}: ${{m.content}}`)
-                .join("\\n") + "\\nassistant:";
-        }}
-
-        const userKey = root.querySelector(".llm-key")?.value.trim();
-        const encodedKey = spec.api_key || cfg.api_key;
-        const key = userKey || (encodedKey ? atob(encodedKey) : "");
-
-        const headers = {{"Content-Type": "application/json"}};
-        if (key) headers.Authorization = `Bearer ${{key}}`;
-
-        prompt.value = "";
-        log.insertAdjacentText("beforeend", `You: ${{text}}\n\n`);
-
-        for (const el of [send, clear, model])
-            el.disabled = true;
-
-        try {{
-            const response = await fetch(spec.endpoint, {{
-                method: "POST",
-                headers,
-                body: JSON.stringify(payload)
-            }});
-
-            if (!response.ok)
-                throw new Error(
-                    `${{response.status}} ${{response.statusText}}`
-                );
-
-            const choice = (await response.json()).choices[0];
-            const answer = api === "chat"
-                ? choice.message.content
-                : choice.text;
-
-            history.push(
-                {{role: "user", content: text}},
-                {{role: "assistant", content: answer}}
-            );
-
-            log.insertAdjacentText(
-                "beforeend",
-                `Model: ${{answer}}\n\n`
-            );
-        }} catch (error) {{
-            log.insertAdjacentText(
-                "beforeend",
-                `Error: ${{error.message}}\n\n`
-            );
-        }} finally {{
-            for (const el of [send, clear, model])
-                el.disabled = false;
-
-            log.scrollTop = log.scrollHeight;
-        }}
-    }};
-}});
+{llm_chat_js}
 </script>
 
 </body>
 </html>
 """
 
+
+
+
+PYODIDE_JS = r"""
+function getPyodide() {
+    pythonAppPyodide ??= (async () => {
+        const base = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+        if (!globalThis.loadPyodide) {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = base + "pyodide.js";
+                script.onload = resolve;
+                script.onerror = () => {
+                    script.remove();
+                    reject(new Error("Could not load Pyodide. Please try again."));
+                };
+                document.head.append(script);
+            });
+        }
+        return globalThis.loadPyodide({indexURL: base});
+    })().catch(error => {
+        pythonAppPyodide = null;
+        throw error;
+    });
+    return pythonAppPyodide;
+}
+
+// One interpreter shared by every Python app.
+let pythonAppPyodide = null;
+let pythonAppNamespace = null;
+let pythonAppQueue = Promise.resolve();
+
+let pythonAppOutput = null;
+
+globalThis.pythonAppInput = prompt => new Promise((resolve, reject) =>  {
+
+    globalThis.cancelPythonInput = () =>
+        reject(new Error("Input cancelled"));
+
+    const row = document.createElement("div");
+    const label = document.createElement("span");
+    const input = document.createElement("input");
+
+    label.textContent = prompt;
+    input.type = "text";
+
+    row.append(label, input);
+    pythonAppOutput.append(row);
+
+    input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+
+        event.preventDefault();
+        input.disabled = true;
+        
+        globalThis.cancelPythonInput = null;
+
+        resolve(input.value);
+    });
+
+    input.focus();
+});
+
+function runVisiblePythonApps() {
+    for (const app of document.querySelectorAll(".python-app:not(.python-edit)")) {
+        if (app.dataset.ran || !app.getClientRects().length) continue;
+
+        app.dataset.ran = "true";
+        pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+    }
+}
+
+async function runPythonApp(app) {
+    const output = app.querySelector(".python-app-output");
+    
+    pythonAppOutput = output;
+
+    const source = app.querySelector(".python-app-source").value;
+
+    const write = text =>
+        output.append(document.createTextNode(text + "\n"));
+
+    output.replaceChildren();
+
+    try {
+        const pyodide = await getPyodide();
+
+        pyodide.setStdout({ batched: write });
+        pyodide.setStderr({ batched: write });
+
+        // Make Python input() wait for our inline field.
+        await pyodide.runPythonAsync(`
+        import builtins
+        from js import pythonAppInput
+        from pyodide.ffi import run_sync
+
+        def _inline_input(prompt=""):
+            return run_sync(pythonAppInput(prompt))
+
+        builtins.input = _inline_input
+        `);
+
+        // Reset variables unless {persist} is specified.
+        if (!pythonAppNamespace || app.dataset.persist !== "true") {
+            pythonAppNamespace?.destroy();
+            pythonAppNamespace = pyodide.runPython("dict()");
+        }
+
+        await pyodide.runPythonAsync(source, {
+            globals: pythonAppNamespace
+        });
+    } catch (error) {
+        write(String(error));
+    }
+}
+
+// Autorun apps on the landing page or selected activity.
+setTimeout(runVisiblePythonApps, 0);
+
+// Also run apps revealed inside expandable details.
+document.addEventListener("toggle", () => {
+    setTimeout(runVisiblePythonApps, 0);
+}, true);
+
+
+document.addEventListener("click", event => {
+    const app = event.target.closest(".python-run")?.closest(".python-edit");
+    if (!app) return;
+
+    pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+});
+"""
+
+LLM_CHAT_JS = r"""
+// LLM chat (chat + completion, with optional tool calls)
+document.querySelectorAll(".llm-chat").forEach(root => {
+    const cfg = JSON.parse(root.querySelector(".llm-config").value);
+    const log = root.querySelector(".llm-messages");
+    const prompt = root.querySelector(".llm-prompt");
+    const model = root.querySelector(".llm-model");
+    const send = root.querySelector(".llm-send");
+    const clear = root.querySelector(".llm-clear");
+    const tools = Array.isArray(cfg.tools) ? cfg.tools : [];
+
+    const run = document.createElement("button");
+    run.type = "button";
+    run.textContent = "Run tool";
+    run.hidden = true;
+    clear.before(run);
+
+    let history = [];
+    let pending = null;
+    let namespace = null;
+
+    function write(text) {
+        log.append(document.createTextNode(text + "\n\n"));
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function responseError(message, response) {
+        return new Error(
+            message + "\nModel response:\n" +
+            JSON.stringify(response, null, 2)
+        );
+    }
+
+    function busy(value) {
+        send.disabled = prompt.disabled = value || pending !== null;
+        clear.disabled = model.disabled = run.disabled = value;
+        run.hidden = pending === null;
+    }
+
+    function reset() {
+        history = [];
+        pending = null;
+        namespace?.destroy();
+        namespace = null;
+        log.replaceChildren();
+        prompt.value = "";
+        busy(false);
+    }
+
+    clear.onclick = reset;
+    model.onchange = reset;
+
+    async function ask(turn, allowTools = true) {
+        const spec = cfg.models[model.value];
+        const api = spec.api || cfg.api || "chat";
+        const messages = cfg.system
+            ? [{role: "system", content: cfg.system}, ...turn]
+            : turn;
+
+        const payload = {
+            model: model.value,
+            ...cfg.parameters,
+            ...spec.parameters
+        };
+        root.querySelectorAll(".llm-control").forEach(control => {
+            payload[control.dataset.param] = Number(control.value);
+        });
+
+        if (api === "chat") {
+            payload.messages = messages;
+            if (tools.length) {
+                payload.tools = tools;
+                payload.tool_choice = allowTools ? "auto" : "none";
+                payload.parallel_tool_calls = false;
+                payload.stream = false;
+            }
+        } else {
+            payload.prompt = messages
+                .map(m => `${m.role}: ${m.content}`)
+                .join("\n") + "\nassistant:";
+        }
+
+        const userKey = root.querySelector(".llm-key")?.value.trim();
+        const encodedKey = spec.api_key || cfg.api_key;
+        const key = userKey || (encodedKey ? atob(encodedKey) : "");
+        const headers = {"Content-Type": "application/json"};
+        if (key) headers.Authorization = `Bearer ${key}`;
+
+        const response = await fetch(spec.endpoint, {
+            method: "POST", headers, body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(`${response.status}: ${detail || response.statusText}`);
+        }
+        const data = await response.json();
+        const choice = data.choices?.[0];
+        if (!choice) {
+            throw responseError("The model returned no choices.", data);
+        }
+        return {api, choice};
+    }
+
+    function execute(call) {
+        const task = async () => {
+            const name = call.function.name;
+            if (!tools.some(t => t.type === "function" && t.function?.name === name)) {
+                throw new Error("Unknown tool: " + name);
+            }
+            const args = JSON.parse(call.function.arguments);
+            if (typeof cfg.python !== "string") {
+                throw new Error("Tools require a python block.");
+            }
+            const pyodide = await getPyodide();
+            pyodide.setStdout({batched: text => write("Python: " + text)});
+            pyodide.setStderr({batched: text => write("Python: " + text)});
+
+            // Define the instructor's Python functions once per chat.
+            if (!namespace) {
+                namespace = pyodide.runPython("dict()");
+                try {
+                    await pyodide.runPythonAsync(cfg.python, {globals: namespace});
+                } catch (error) {
+                    namespace.destroy();
+                    namespace = null;
+                    throw error;
+                }
+            }
+
+            // Arguments are passed as data, never as executable Python source.
+            namespace.set("_gg_request", JSON.stringify({name, args}));
+            return pyodide.runPythonAsync(
+                'import json as _gg_json\n' +
+                '_gg_call = _gg_json.loads(_gg_request)\n' +
+                '_gg_json.dumps(globals()[_gg_call["name"]](**_gg_call["args"]), allow_nan=False)',
+                {globals: namespace}
+            );
+        };
+        const result = pythonAppQueue.then(task, task);
+        pythonAppQueue = result.catch(() => {});
+        return result;
+    }
+
+    send.onclick = async () => {
+        const text = prompt.value.trim();
+        if (!text || send.disabled) return;
+        const turn = [...history, {role: "user", content: text}];
+        prompt.value = "";
+        busy(true);
+        write("You: " + text);
+
+        try {
+            const {api, choice} = await ask(turn);
+            const message = choice.message;
+            const calls = api === "chat" && tools.length
+                ? (message?.tool_calls || [])
+                : [];
+
+            if (!Array.isArray(calls) || calls.length > 1) {
+                throw responseError("Only one tool call is allowed per turn.", choice);
+            }
+            if (calls.length) {
+                const call = calls[0];
+                if (call.type !== "function" || !call.id || !call.function?.name) {
+                    throw responseError("Invalid function call returned by the model.", choice);
+                }
+                history = [...turn, message];
+                pending = call;
+                if (message.content) write("Model: " + message.content);
+                write("Tool requested: " + call.function.name + " " + call.function.arguments);
+            } else {
+                const answer = api === "chat" ? message?.content : choice.text;
+                if (typeof answer !== "string") {
+                    throw responseError("The model returned no text.", choice);
+                }
+                history = [...turn, {role: "assistant", content: answer}];
+                write("Model: " + answer);
+            }
+        } catch (error) {
+            write("Error: " + error.message);
+            prompt.value = text;
+        } finally {
+            busy(false);
+        }
+    };
+
+    run.onclick = async () => {
+        if (!pending || run.disabled) return;
+        const call = pending;
+        busy(true);
+        write("Running tool: " + call.function.name);
+        try {
+            let content;
+            try {
+                content = await execute(call);
+            } catch (error) {
+                history.push({
+                    role: "tool", tool_call_id: call.id,
+                    content: JSON.stringify({error: error.message})
+                });
+                write("Error: " + error.message);
+                return;
+            }
+            history.push({role: "tool", tool_call_id: call.id, content});
+            write("Tool result: " + content);
+
+            const {choice} = await ask(history, false);
+            const message = choice.message;
+            if (message?.tool_calls?.length) {
+                throw new Error("Only one tool call is allowed per turn.", choice);
+            }
+            if (typeof message?.content !== "string") {
+                throw new Error("The model returned no text.", choice);
+            }
+            history.push(message);
+            write("Model: " + message.content);
+        } catch (error) {
+            write("Error: " + error.message);
+        } finally {
+            pending = null;
+            busy(false);
+        }
+    };
+});
+"""
+
+# LLM_CHAT_JS = r"""
+# // LLM chat
+# document.querySelectorAll(".llm-chat").forEach(root => {{
+#     const cfg = JSON.parse(root.querySelector(".llm-config").value);
+#     const log = root.querySelector(".llm-messages");
+#     const prompt = root.querySelector(".llm-prompt");
+#     const model = root.querySelector(".llm-model");
+#     const send = root.querySelector(".llm-send");
+#     const clear = root.querySelector(".llm-clear");
+#     let history = [];
+
+#     function reset() {{
+#         history = [];
+#         log.replaceChildren();
+#         prompt.value = "";
+#     }}
+
+#     clear.onclick = reset;
+#     model.onchange = reset;
+
+#     send.onclick = async () => {{
+#         const text = prompt.value.trim();
+#         if (!text) return;
+
+#         const spec = cfg.models[model.value];
+#         const api = spec.api || cfg.api || "chat";
+
+#         const messages = [
+#             ...history,
+#             {{role: "user", content: text}}
+#         ];
+
+#         if (cfg.system)
+#             messages.unshift({{role: "system", content: cfg.system}});
+
+#         const payload = {{
+#             model: model.value,
+#             ...cfg.parameters,
+#             ...spec.parameters
+#         }};
+
+#         root.querySelectorAll(".llm-control").forEach(control => {{
+#             payload[control.dataset.param] = Number(control.value);
+#         }});
+
+#         if (api === "chat") {{
+#             payload.messages = messages;
+#         }} else {{
+#             payload.prompt = messages
+#                 .map(m => `${{m.role}}: ${{m.content}}`)
+#                 .join("\\n") + "\\nassistant:";
+#         }}
+
+#         const userKey = root.querySelector(".llm-key")?.value.trim();
+#         const encodedKey = spec.api_key || cfg.api_key;
+#         const key = userKey || (encodedKey ? atob(encodedKey) : "");
+
+#         const headers = {{"Content-Type": "application/json"}};
+#         if (key) headers.Authorization = `Bearer ${{key}}`;
+
+#         prompt.value = "";
+#         log.insertAdjacentText("beforeend", `You: ${{text}}\n\n`);
+
+#         for (const el of [send, clear, model])
+#             el.disabled = true;
+
+#         try {{
+#             const response = await fetch(spec.endpoint, {{
+#                 method: "POST",
+#                 headers,
+#                 body: JSON.stringify(payload)
+#             }});
+
+#             if (!response.ok)
+#                 throw new Error(
+#                     `${{response.status}} ${{response.statusText}}`
+#                 );
+
+#             const choice = (await response.json()).choices[0];
+#             const answer = api === "chat"
+#                 ? choice.message.content
+#                 : choice.text;
+
+#             history.push(
+#                 {{role: "user", content: text}},
+#                 {{role: "assistant", content: answer}}
+#             );
+
+#             log.insertAdjacentText(
+#                 "beforeend",
+#                 `Model: ${{answer}}\n\n`
+#             );
+#         }} catch (error) {{
+#             log.insertAdjacentText(
+#                 "beforeend",
+#                 `Error: ${{error.message}}\n\n`
+#             );
+#         }} finally {{
+#             for (const el of [send, clear, model])
+#                 el.disabled = false;
+
+#             log.scrollTop = log.scrollHeight;
+#         }}
+#     }};
+# }});
+# """
 
 def iframe_fence(source, language, css_class, options, md, **kwargs):
     config = yaml.safe_load(source) or {}
@@ -442,15 +674,6 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
     if config.get("hash"):
         url += "#" + encode(config["hash"])
 
-    # return (
-    #     '<p>'
-    #     f'<iframe src="{html.escape(url, quote=True)}" '
-    #     f'title="{html.escape(title, quote=True)}" '
-    #     f'style="width: {html.escape(str(width))} !important; '
-    #     f'height: {html.escape(str(height))};"></iframe>'
-    #     '</p>'
-    # )
-
     # Pass optional class for formatting output
     iframe_class = config.get("class")
     class_attr = (
@@ -467,50 +690,6 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
         '</p>'
     )
 
-# def interactive_python_fence(source, language, css_class, options, md, **kwargs):
-#     """Render a Python code block using the JupyterLite single-cell REPL."""
-
-#     config = {
-#         "title": "Interactive Python",
-#         "url": JUPYTERLITE_REPL,
-#         "width": "100%",
-#         "height": "500px",
-#         "query": {
-#             "kernel": "python",
-#             "toolbar": 1,
-#             "promptCellPosition": "top",
-#             "clearCellsOnExecute": 1,
-#             "hideCodeInput": 1,
-#             "clearCodeContentOnExecute": 0,
-#             "showBanner": 0,
-#             "execute": 0,
-#             "code": source.strip(),
-#         },
-#     }
-
-#     # Reuse the normal iframe renderer rather than maintaining
-#     # a second implementation of iframe URL construction.
-#     return iframe_fence(
-#         yaml.safe_dump(config, sort_keys=False),
-#         language,
-#         css_class,
-#         options,
-#         md,
-#         **kwargs,
-#     )
-
-
-# def python_app_fence(source, language, css_class, options, md, **kwargs):
-#     persist = "persist" in kwargs.get("attrs", {})
-
-#     return (
-#         f'<div class="python-app-slot" '
-#         f'data-persist="{str(persist).lower()}">'
-#         f'<textarea class="python-app-source" hidden="hidden">'
-#         f'{html.escape(source)}'
-#         f'</textarea>'
-#         f'</div>'
-#     )
 def python_app_fence(source, language, css_class, options, md, **kwargs):
     persist = "persist" in kwargs.get("attrs", {})
 
@@ -558,15 +737,6 @@ def interactive_python_fence(source, language, css_class, options, md, **kwargs)
     if not run:
         config["query"]["execute"] = 0
 
-    # return iframe_fence(
-    #     yaml.safe_dump(config, sort_keys=False),
-    #     language,
-    #     css_class,
-    #     options,
-    #     md,
-    #     **kwargs,
-    # )
-
     return iframe_fence(
         yaml.safe_dump(config, sort_keys=False),
         language, css_class, options, md, **kwargs,
@@ -613,153 +783,6 @@ def python_trace_fence(source, language, css_class, options, md, **kwargs):
         '</p>'
         '</div>'
     )
-# def llm_chat_fence(source, language, css_class, options, md, **kwargs):
-#     from uuid import uuid4
-
-#     cfg = yaml.safe_load(source)
-#     models = [dict(name=m) if isinstance(m, str) else m for m in cfg["models"]]
-#     cfg["models"] = {m["name"]: m for m in models}
-
-#     key_html = (
-#         '<label>API key: <input type="password" class="llm-key" '
-#         'placeholder="Optional: use your own key" autocomplete="off"></label>'
-#         if cfg.get("key_field") else ""
-#     )
-
-#     cid = "chat-" + uuid4().hex
-
-#     code = f"CID={cid!r}\nCFG={cfg!r}\n" + r"""
-# import json, builtins
-# from js import document
-# from pyodide.http import pyfetch
-# from pyodide.ffi import create_proxy
-
-# def setup():
-#     root = document.getElementById(CID)
-#     if root.hasAttribute("data-ready"):
-#         return
-
-#     log = root.querySelector(".llm-messages")
-#     prompt = root.querySelector(".llm-prompt")
-#     model = root.querySelector(".llm-model")
-#     send_btn = root.querySelector(".llm-send")
-#     clear_btn = root.querySelector(".llm-clear")
-#     history = []
-#     cfg = CFG
-
-#     def clear(event=None):
-#         history.clear()
-#         log.replaceChildren()
-#         prompt.value = ""
-
-#     async def send(event):
-#         text = prompt.value.strip()
-#         if not text or send_btn.disabled:
-#             return
-
-#         for el in (send_btn, clear_btn, model):
-#             el.disabled = True
-#         prompt.value = ""
-#         log.insertAdjacentText("beforeend", f"You: {text}\n\n")
-
-#         try:
-#             spec = cfg["models"][model.value]
-#             api = spec.get("api", cfg.get("api", "chat"))
-#             url = (spec.get("endpoint") or cfg["endpoint"]).rstrip("/")
-#             for suffix in ("/chat/completions", "/completions"):
-#                 if url.endswith(suffix):
-#                     url = url[:-len(suffix)]
-#                     break
-#             url += {"chat": "/chat/completions",
-#                     "completion": "/completions"}[api]
-
-#             messages = history + [{"role": "user", "content": text}]
-#             if cfg.get("system"):
-#                 messages.insert(0, {"role": "system", "content": cfg["system"]})
-
-#             payload = {"model": model.value, **cfg.get("parameters", {}),
-#                        **spec.get("parameters", {})}
-#             for el in root.querySelectorAll(".llm-control"):
-#                 payload[el.getAttribute("data-param")] = json.loads(el.value)
-
-#             if api == "chat":
-#                 payload["messages"] = messages
-#             else:
-#                 payload["prompt"] = "\n".join(
-#                     f"{m['role'].capitalize()}: {m['content']}"
-#                     for m in messages
-#                 ) + "\nAssistant:"
-
-#             # r = await pyfetch(url, method="POST",
-#             #     headers={"Content-Type": "application/json"},
-#             #     body=json.dumps(payload))
-#             key_input = root.querySelector(".llm-key")
-#             key = (key_input.value.strip() if key_input else "") or \
-#                 spec.get("api_key", cfg.get("api_key", ""))
-
-#             headers = {"Content-Type": "application/json"}
-#             if key:
-#                 headers["Authorization"] = f"Bearer {key}"
-
-#             r = await pyfetch(
-#                 url, method="POST",
-#                 headers=headers,
-#                 body=json.dumps(payload)
-#             )
-
-#             r.raise_for_status()
-#             choice = (await r.json())["choices"][0]
-#             answer = choice["message"]["content"] if api == "chat" else choice["text"]
-
-#             history.extend([{"role": "user", "content": text},
-#                             {"role": "assistant", "content": answer}])
-#             log.insertAdjacentText("beforeend", f"Model: {answer}\n\n")
-#         except Exception as e:
-#             log.insertAdjacentText("beforeend", f"Error: {e}\n\n")
-#         finally:
-#             for el in (send_btn, clear_btn, model):
-#                 el.disabled = False
-#             log.scrollTop = log.scrollHeight
-
-#     callbacks = [create_proxy(send), create_proxy(clear)]
-#     for el, event, callback in (
-#         (send_btn, "click", callbacks[0]),
-#         (clear_btn, "click", callbacks[1]),
-#         (model, "change", callbacks[1])
-#     ):
-#         el.addEventListener(event, callback)
-
-#     builtins._gg_chat_handlers = getattr(builtins, "_gg_chat_handlers", []) + callbacks
-#     root.setAttribute("data-ready", "true")
-
-# setup()
-# """
-
-#     options_html = "".join(
-#         f'<option>{html.escape(str(m["name"]))}</option>' for m in models
-#     )
-#     controls_html = "".join(
-#         f'<label>{html.escape(k)} <input type="number" class="llm-control" '
-#         f'data-param="{html.escape(k, quote=True)}" '
-#         f'min="{v["min"]}" max="{v["max"]}" step="{v.get("step", 1)}" '
-#         f'value="{cfg.get("parameters", {}).get(k, v["min"])}"></label>'
-#         for k, v in cfg.get("controls", {}).items()
-#     )
-
-#     return (
-#         f'<div class="python-app llm-chat" id="{cid}">'
-#         f'<textarea class="python-app-source" hidden="hidden">'
-#         f'{html.escape(code)}</textarea>'
-#         f'<label>Model: <select class="llm-model">{options_html}</select></label>'
-#         f'{key_html}'
-#         f'<div class="llm-controls">{controls_html}</div>'
-#         '<div class="llm-messages" aria-live="polite"></div>'
-#         '<textarea class="llm-prompt" rows="3" placeholder="Your message"></textarea>'
-#         '<div class="llm-actions">'
-#         '<button type="button" class="llm-send">Send</button>'
-#         '<button type="button" class="llm-clear">Clear</button>'
-#         '</div><div class="python-app-output"></div></div>'
-#     )
 
 def llm_chat_fence(source, language, css_class, options, md, **kwargs):
     try:
@@ -960,12 +983,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
     for i, activity in enumerate(activities, start=1):
         activity_title = activity.title or f"Activity {i}"
 
-        # Activity links appear both in the top navigation and landing page.
-        # link = (
-        #     f'<a href="?activity={i}&step=1">'
-        #     f'{html.escape(activity_title)}</a>'
-        # )
-
         # Don't provide navigation for missing titles
         if activity.title != "Activity":
             link = (
@@ -976,33 +993,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
             print("Warning: No title for activity, not added to navigation.")
             link = ""
 
-        # prev_activity = (
-        #     f'<a class="activity-arrow activity-arrow-left" '
-        #     f'href="?activity={i - 1}&exercise=1" '
-        #     f'aria-label="Previous activity">←</a>'
-        #     if i > 1 else ""
-        # )
-
-        # next_activity = (
-        #     f'<a class="activity-arrow activity-arrow-right" '
-        #     f'href="?activity={i + 1}&exercise=1" '
-        #     f'aria-label="Next activity">→</a>'
-        #     if i < len(activities) else ""
-        # )
-
-        # prev_activity = (
-        #     f'<a class="activity-arrow activity-arrow-left" '
-        #     f'href="?activity={i - 1}&exercise=1" '
-        #     f'aria-label="Previous activity"></a>'
-        #     if i > 1 else ""
-        # )
-
-        # next_activity = (
-        #     f'<a class="activity-arrow activity-arrow-right" '
-        #     f'href="?activity={i + 1}&exercise=1" '
-        #     f'aria-label="Next activity"></a>'
-        #     if i < len(activities) else ""
-        # )
         prev_activity = (
             f'<a class="activity-arrow activity-arrow-left" '
             f'href="{"?" if i == 1 else f"?activity={i - 1}&exercise=1"}" '
@@ -1026,9 +1016,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
         ]
 
         if not steps:
-            # raise ValueError(
-            #     f"{activity_title!r} has no !!! step environments."
-            # )
             print(f"Warning: {activity_title!r} has no exercise/step environments.")
 
         steps_html = []
@@ -1040,11 +1027,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
                 encoding="unicode",
                 method="html",
             )
-            
-            # prev_button = (
-            #     f'<button onclick="showStep({j - 1})">Back</button>'
-            #     if j > 1 else ""
-            # )
 
             if j > 1:
                 prev_button = (
@@ -1065,10 +1047,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
             else:
                 prev_button = ""
 
-            # next_button = (
-            #     f'<button onclick="showStep({j + 1})">Next →</button>'
-            #     if j < len(steps) else ""
-            # )
             next_button = (
                 f'<button onclick="showStep({j + 1})">Next</button>'
                 if j < len(steps)
@@ -1091,30 +1069,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
                 )
                 for child in step.children
             )
-
-            # steps_html.append(
-            #     f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
-            #     f'<h2>{html.escape(step_title)}</h2>'
-            #     f'{step_body}'
-            #     f'<div class="step-nav">'
-            #     f'{prev_link}'
-            #     f'<span>Step {j} of {len(steps)}</span>'
-            #     f'{next_link}'
-            #     f'</div>'
-            #     f'</section>'
-            # )
-            
-            # steps_html.append(
-            #     f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
-            #     f'<h2>{html.escape(step_title)}</h2>'
-            #     f'{step_body}'
-            #     f'<div class="exercise-nav">'
-            #     f'{prev_button}'
-            #     f'<span>Step {j} of {len(steps)}</span>'
-            #     f'{next_button}'
-            #     f'</div>'
-            #     f'</section>'
-            # )
 
             steps_html.append(
                 f'<section class="exercise" id="activity-{i}-step-{j}" hidden>'
@@ -1140,64 +1094,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
             for child in activity.children
             if child.name != "exercise"
         )
-
-        # activity_html.append(
-        #     f'<section class="activity" id="activity-{i}" hidden>'
-        #     f'<h1>{html.escape(activity_title)}</h1>'
-        #     f'{activity_body}'
-        #     f'{"".join(steps_html)}'
-        #     f'</section>'
-        # )
-
-        # activity_html.append(
-        #     f'<section class="activity" id="activity-{i}" hidden>'
-        #     f'{prev_activity}'
-        #     f'{next_activity}'
-        #     f'<h1>{html.escape(activity_title)}</h1>'
-        #     f'{activity_body}'
-        #     f'{"".join(steps_html)}'
-        #     f'</section>'
-        # )
-
-        # exercise_body = "".join(steps_html)
-
-        # if exercise_position == "top":
-        #     content = exercise_body + activity_body
-        # else:
-        #     content = activity_body + exercise_body
-
-        # activity_html.append(
-        #     f'<section class="activity" id="activity-{i}" hidden>'
-        #     f'{prev_activity}'
-        #     f'{next_activity}'
-        #     f'<h1>{html.escape(activity_title)}</h1>'
-        #     f'{content}'
-        #     f'</section>'
-        # )
-
-        # exercise_body = "".join(steps_html)
-
-        # activity_content = (
-        #     f'<div class="activity-content">'
-        #     f'{activity_body}'
-        #     f'</div>'
-        # )
-
-        # if exercise_position == "top":
-        #     stack = exercise_body + activity_content
-        # else:
-        #     stack = activity_content + exercise_body
-
-        # activity_html.append(
-        #     f'<section class="activity" id="activity-{i}" hidden>'
-        #     f'{prev_activity}'
-        #     f'{next_activity}'
-        #     # f'<h1>{html.escape(activity_title)}</h1>'
-        #     f'<div class="activity-stack">'
-        #     f'{stack}'
-        #     f'</div>'
-        #     f'</section>'
-        # )            
 
         exercise_body = "".join(steps_html)
 
@@ -1252,14 +1148,6 @@ def render(source, title, theme=None, exercise_position="bottom"):
     css_path = Path(__file__).resolve().parent / "activity.css"
     default_css = css_path.read_text(encoding="utf-8")  
 
-    # return HTML_TEMPLATE.format(
-    #     title=html.escape(title),
-    #     landing=landing,
-    #     topnav="\n".join(topnav),
-    #     activity_list="\n".join(activity_list),
-    #     activities="\n".join(activity_html),
-    # )
-
     return HTML_TEMPLATE.format(
         title=html.escape(title),
         default_css=default_css,
@@ -1268,7 +1156,8 @@ def render(source, title, theme=None, exercise_position="bottom"):
         topnav="\n".join(topnav),
         activity_list="\n".join(activity_list),
         activities="\n".join(activity_html),
-        PYODIDE_JS=PYODIDE_JS,
+        pyodide_js=PYODIDE_JS,
+        llm_chat_js=LLM_CHAT_JS,
     )
 
 
