@@ -913,3 +913,13 @@ pre {
     display: block;
     margin-top: 0.75rem;
 }
+
+.llm-state {
+    margin-top: 0.5rem;
+}
+
+.llm-state pre {
+    max-height: 12rem;
+    overflow: auto;
+    white-space: pre;
+}

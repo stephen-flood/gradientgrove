@@ -129,7 +129,7 @@ function showStep(n) {{
     step.querySelectorAll(".python-app").forEach(app => {{
         delete app.dataset.ran;
     }});
-    setTimeout(runVisiblePythonApps, 0);
+    setTimeout(() => runVisiblePythonApps(), 0);
 
     const url = new URL(location);
     url.searchParams.set("exercise", n);
@@ -357,7 +357,9 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     //clear.before(run);
     run.className = "llm-run";
 
-    let history = [];
+    const initialHistory = cfg.history || [];
+    let history = [...initialHistory];
+
     let pending = null;
     let namespace = null;
 
@@ -412,11 +414,15 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     }
 
     function reset() {
-        history = [];
+        history = [...initialHistory];
         pending = null;
         namespace?.destroy();
         namespace = null;
         log.replaceChildren();
+        history.forEach(m => {
+            if (m.role === "user" || m.role === "assistant")
+                write((m.role === "user" ? "You: " : "Model: ") + m.content);
+        });
         prompt.value = "";
         busy(false);
     }
@@ -630,6 +636,37 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             box.append(document.createTextNode("\nTool result: " + content));
             box.classList.replace("llm-tool-running", "llm-tool-result");
 
+            if (Array.isArray(cfg.state) && cfg.state.length) {
+                namespace.set("_gg_state_names", JSON.stringify(cfg.state));
+
+                const snapshot = await (await getPyodide()).runPythonAsync(
+                    'import json as _gg_json\n' +
+                    '_gg_json.dumps({n: globals().get(n, "<undefined>") ' +
+                    'for n in _gg_json.loads(_gg_state_names)}, default=str)',
+                    {globals: namespace}
+                );
+
+                const details = document.createElement("details");
+                details.className = "llm-state";
+
+                const summary = document.createElement("summary");
+                summary.textContent = `State (${cfg.state.length})`;
+                details.append(summary);
+
+                for (const [name, value] of Object.entries(JSON.parse(snapshot))) {
+                    const label = document.createElement("strong");
+                    label.textContent = name;
+
+                    const pre = document.createElement("pre");
+                    pre.textContent = JSON.stringify(value, null, 2);
+
+                    details.append(label, pre);
+                }
+
+                box.append(details);
+                log.scrollTop = log.scrollHeight;
+            }
+
             const {choice} = await ask(history, false);
             const message = choice.message;
             if (message?.tool_calls?.length) {
@@ -647,6 +684,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             busy(false);
         }
     };
+    reset();
 });
 """
 
@@ -975,6 +1013,22 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             if cfg.get("show_system_prompt") else ""
         )
 
+        tools_html = ""
+        if cfg.get("tools"):
+            items = ""
+            for tool in cfg["tools"]:
+                fn = tool["function"]
+                inputs = ", ".join(
+                    f'{name} ({info.get("description", info.get("type", ""))})'
+                    for name, info in fn.get("parameters", {}).get("properties", {}).items()
+                )
+                items += (
+                    f'<li><strong>{html.escape(fn["name"])}</strong>: '
+                    f'{html.escape(fn.get("description", ""))} '
+                    f'<i>Inputs:</i> {html.escape(inputs)}</li>'
+                )
+            tools_html = f'<details><summary>Available tools</summary><ul>{items}</ul></details>'
+            
         return (
             '<div class="llm-chat">'
             f'<textarea class="llm-config" hidden="hidden">'
@@ -983,6 +1037,7 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             f'<select class="llm-model">{options_html}</select></label>'
             f'{key_html}'
             f'{system_html}'
+            f'{tools_html}'
             f'<div class="llm-controls">{controls_html}</div>'
             '<div class="llm-messages" aria-live="polite"></div>'
             '<textarea class="llm-prompt" rows="3" '
