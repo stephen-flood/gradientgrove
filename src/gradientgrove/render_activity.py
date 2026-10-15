@@ -413,12 +413,24 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         run.hidden = pending === null;
     }
 
-    function reset() {
+    async function reset() {
         history = [...initialHistory];
         pending = null;
         namespace?.destroy();
         namespace = null;
         log.replaceChildren();
+        if (cfg.state?.length) {
+            busy(true);
+            const box = document.createElement("div");
+            box.className = "llm-message llm-tool-result";
+            log.append(box);
+
+            try {
+                await showState(box);
+            } catch (error) {
+                write("Error: " + error.message);
+            }
+        }
         history.forEach(m => {
             if (m.role === "user" || m.role === "assistant")
                 write((m.role === "user" ? "You: " : "Model: ") + m.content);
@@ -520,6 +532,39 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         }
         return {api, choice};
     }
+        
+    async function showState(box) {
+        if (!cfg.state?.length) return;
+
+        const task = async () => {
+            const pyodide = await getPyodide();
+
+            if (!namespace) {
+                namespace = pyodide.runPython("dict()");
+                await pyodide.runPythonAsync(cfg.python, {globals: namespace});
+            }
+
+            namespace.set("_gg_names", JSON.stringify(cfg.state));
+            return pyodide.runPythonAsync(
+                'import json\njson.dumps({n: globals().get(n) ' +
+                'for n in json.loads(_gg_names)}, default=str)',
+                {globals: namespace}
+            );
+        };
+
+        const result = pythonAppQueue.then(task, task);
+        pythonAppQueue = result.catch(() => {});
+
+        const details = document.createElement("details");
+        details.className = "llm-state";
+        details.innerHTML = "<summary>State</summary>";
+
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(JSON.parse(await result), null, 2);
+        details.append(pre);
+        box.append(details);
+    }
+
 
     function execute(call) {
         const task = async () => {
@@ -636,36 +681,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             box.append(document.createTextNode("\nTool result: " + content));
             box.classList.replace("llm-tool-running", "llm-tool-result");
 
-            if (Array.isArray(cfg.state) && cfg.state.length) {
-                namespace.set("_gg_state_names", JSON.stringify(cfg.state));
-
-                const snapshot = await (await getPyodide()).runPythonAsync(
-                    'import json as _gg_json\n' +
-                    '_gg_json.dumps({n: globals().get(n, "<undefined>") ' +
-                    'for n in _gg_json.loads(_gg_state_names)}, default=str)',
-                    {globals: namespace}
-                );
-
-                const details = document.createElement("details");
-                details.className = "llm-state";
-
-                const summary = document.createElement("summary");
-                summary.textContent = `State (${cfg.state.length})`;
-                details.append(summary);
-
-                for (const [name, value] of Object.entries(JSON.parse(snapshot))) {
-                    const label = document.createElement("strong");
-                    label.textContent = name;
-
-                    const pre = document.createElement("pre");
-                    pre.textContent = JSON.stringify(value, null, 2);
-
-                    details.append(label, pre);
-                }
-
-                box.append(details);
-                log.scrollTop = log.scrollHeight;
-            }
+            await showState(box);
 
             const {choice} = await ask(history, false);
             const message = choice.message;
