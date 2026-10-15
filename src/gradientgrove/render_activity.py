@@ -309,7 +309,11 @@ document.querySelectorAll(".llm-chat").forEach(root => {{
 
         const spec = cfg.models[model.value];
         const api = spec.api || cfg.api || "chat";
-        const messages = [...history, {{role: "user", content: text}}];
+
+        const messages = [
+            ...history,
+            {{role: "user", content: text}}
+        ];
 
         if (cfg.system)
             messages.unshift({{role: "system", content: cfg.system}});
@@ -340,8 +344,10 @@ document.querySelectorAll(".llm-chat").forEach(root => {{
         if (key) headers.Authorization = `Bearer ${{key}}`;
 
         prompt.value = "";
-        send.disabled = true;
         log.insertAdjacentText("beforeend", `You: ${{text}}\n\n`);
+
+        for (const el of [send, clear, model])
+            el.disabled = true;
 
         try {{
             const response = await fetch(spec.endpoint, {{
@@ -351,7 +357,9 @@ document.querySelectorAll(".llm-chat").forEach(root => {{
             }});
 
             if (!response.ok)
-                throw new Error(`${{response.status}} ${{response.statusText}}`);
+                throw new Error(
+                    `${{response.status}} ${{response.statusText}}`
+                );
 
             const choice = (await response.json()).choices[0];
             const answer = api === "chat"
@@ -363,11 +371,19 @@ document.querySelectorAll(".llm-chat").forEach(root => {{
                 {{role: "assistant", content: answer}}
             );
 
-            log.insertAdjacentText("beforeend", `Model: ${{answer}}\n\n`);
+            log.insertAdjacentText(
+                "beforeend",
+                `Model: ${{answer}}\n\n`
+            );
         }} catch (error) {{
-            log.insertAdjacentText("beforeend", `Error: ${{error.message}}\n\n`);
+            log.insertAdjacentText(
+                "beforeend",
+                `Error: ${{error.message}}\n\n`
+            );
         }} finally {{
-            send.disabled = false;
+            for (const el of [send, clear, model])
+                el.disabled = false;
+
             log.scrollTop = log.scrollHeight;
         }}
     }};
@@ -722,95 +738,112 @@ def python_trace_fence(source, language, css_class, options, md, **kwargs):
 #     )
 
 def llm_chat_fence(source, language, css_class, options, md, **kwargs):
-    cfg = yaml.safe_load(source) or {}
-    models = cfg.get("models", [])
+    try:
+        cfg = yaml.safe_load(source) or {}
+        models = cfg.get("models", [])
 
-    if not models:
-        raise ValueError("llm-chat requires at least one model")
+        if not models:
+            raise ValueError("llm-chat requires at least one model")
 
-    for model in models:
-        if not isinstance(model, dict):
-            raise ValueError("Each llm-chat model must be a mapping")
-        if "name" not in model:
-            raise ValueError("Each llm-chat model requires a name")
-        if "endpoint" not in model:
-            raise ValueError(
-                f'llm-chat model "{model["name"]}" requires an endpoint'
-            )
+        for model in models:
+            if not isinstance(model, dict):
+                raise ValueError("Each model must contain name and endpoint")
+            if "name" not in model:
+                raise ValueError("Each model requires a name")
+            if "endpoint" not in model:
+                raise ValueError(
+                    f'Model "{model["name"]}" requires an endpoint'
+                )
 
-        api = model.get("api", cfg.get("api", "chat"))
-        if api not in ("chat", "completion"):
-            raise ValueError(
-                f'llm-chat model "{model["name"]}" has invalid api "{api}".  Must be "chat" or "completion"'
-            )
+            api = model.get("api", cfg.get("api", "chat"))
+            if api not in ("chat", "completion"):
+                raise ValueError(
+                    f'Model "{model["name"]}" api must be '
+                    '"chat" or "completion"'
+                )
 
-    # Obfuscate embedded API keys. They are still recoverable in the browser.
-    embedded_key = False
+        # Obfuscate embedded keys. This is not security.
+        embedded_key = False
 
-    if cfg.get("api_key"):
-        cfg["api_key"] = base64.b64encode(
-            cfg["api_key"].encode()
-        ).decode()
-        embedded_key = True
-
-    for model in models:
-        if model.get("api_key"):
-            model["api_key"] = base64.b64encode(
-                model["api_key"].encode()
+        if cfg.get("api_key"):
+            cfg["api_key"] = base64.b64encode(
+                cfg["api_key"].encode()
             ).decode()
             embedded_key = True
 
-    if embedded_key:
-        print(
-            "WARNING: llm-chat embeds an API key in client-side HTML.\n"
-            "         It is obfuscated but NOT secret.\n"
-            "         Only use restricted, rate-limited, internal credentials.\n\n"
-            "         Do **NOT** use for any credential that could cost you money!!!.\n"
+        for model in models:
+            if model.get("api_key"):
+                model["api_key"] = base64.b64encode(
+                    model["api_key"].encode()
+                ).decode()
+                embedded_key = True
+
+        if embedded_key:
+            print(
+                "WARNING: llm-chat embeds an API key in client-side HTML.\n"
+                "         It is obfuscated but NOT secret.\n"
+                "         Use only a restricted, rate-limited credential."
+            )
+
+        cfg["models"] = {
+            model["name"]: model
+            for model in models
+        }
+
+        options_html = "".join(
+            f'<option value="{html.escape(str(model["name"]), quote=True)}">'
+            f'{html.escape(str(model["name"]))}</option>'
+            for model in models
         )
 
-    cfg["models"] = {model["name"]: model for model in models}
+        controls_html = "".join(
+            f'<label>{html.escape(name)} '
+            f'<input type="number" class="llm-control" '
+            f'data-param="{html.escape(name, quote=True)}" '
+            f'min="{control["min"]}" '
+            f'max="{control["max"]}" '
+            f'step="{control.get("step", 1)}" '
+            f'value="{cfg.get("parameters", {}).get(name, control["min"])}">'
+            f'</label>'
+            for name, control in cfg.get("controls", {}).items()
+        )
 
-    options_html = "".join(
-        f'<option value="{html.escape(str(model["name"]), quote=True)}">'
-        f'{html.escape(str(model["name"]))}</option>'
-        for model in models
-    )
+        key_html = (
+            '<label>API key: '
+            '<input type="password" class="llm-key" '
+            'placeholder="Optional: use your own key" '
+            'autocomplete="off"></label>'
+            if cfg.get("key_field") else ""
+        )
 
-    controls_html = "".join(
-        f'<label>{html.escape(name)} '
-        f'<input type="number" class="llm-control" '
-        f'data-param="{html.escape(name, quote=True)}" '
-        f'min="{control["min"]}" max="{control["max"]}" '
-        f'step="{control.get("step", 1)}" '
-        f'value="{cfg.get("parameters", {}).get(name, control["min"])}">'
-        f'</label>'
-        for name, control in cfg.get("controls", {}).items()
-    )
+        return (
+            '<div class="llm-chat">'
+            f'<textarea class="llm-config" hidden="hidden">'
+            f'{html.escape(json.dumps(cfg))}</textarea>'
+            f'<label>Model: '
+            f'<select class="llm-model">{options_html}</select></label>'
+            f'{key_html}'
+            f'<div class="llm-controls">{controls_html}</div>'
+            '<div class="llm-messages" aria-live="polite"></div>'
+            '<textarea class="llm-prompt" rows="3" '
+            'placeholder="Your message"></textarea>'
+            '<div class="llm-actions">'
+            '<button type="button" class="llm-send">Send</button>'
+            '<button type="button" class="llm-clear">Clear</button>'
+            '</div>'
+            '</div>'
+        )
 
-    key_html = (
-        '<label>API key: '
-        '<input type="password" class="llm-key" '
-        'placeholder="Optional: use your own key" autocomplete="off">'
-        '</label>'
-        if cfg.get("key_field") else ""
-    )
+    except Exception as error:
+        message = f"llm-chat: {error}"
+        print(f"ERROR: {message}")
 
-    return (
-        '<div class="llm-chat">'
-        f'<textarea class="llm-config" hidden="hidden">'
-        f'{html.escape(json.dumps(cfg))}</textarea>'
-        f'<label>Model: <select class="llm-model">{options_html}</select></label>'
-        f'{key_html}'
-        f'<div class="llm-controls">{controls_html}</div>'
-        '<div class="llm-messages" aria-live="polite"></div>'
-        '<textarea class="llm-prompt" rows="3" '
-        'placeholder="Your message"></textarea>'
-        '<div class="llm-actions">'
-        '<button type="button" class="llm-send">Send</button>'
-        '<button type="button" class="llm-clear">Clear</button>'
-        '</div>'
-        '</div>'
-    )
+        return (
+            '<div class="admonition error">'
+            '<p class="admonition-title">LLM Chat Error</p>'
+            f'<p>{html.escape(message)}</p>'
+            '</div>'
+        )
 
 def render(source, title, theme=None, exercise_position="bottom"):
     """Build the GradientGrove AST and render the activity HTML page."""
