@@ -403,7 +403,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     clear.onclick = reset;
     model.onchange = reset;
 
-    async function ask(turn, allowTools = true) {
+    async function ask(turn, allowTools = true, onChunk = () => {}) {
         const spec = cfg.models[model.value];
         const api = spec.api || cfg.api || "chat";
         const messages = cfg.system
@@ -428,10 +428,10 @@ document.querySelectorAll(".llm-chat").forEach(root => {
                 payload.stream = false;
             }
         } else {
-            payload.prompt = messages
-                .map(m => `${m.role}: ${m.content}`)
-                .join("\n") + "\nassistant:";
+            payload.prompt = turn.at(-1).content;
         }
+
+        payload.stream = api === "completion" || !tools.length;
 
         const userKey = root.querySelector(".llm-key")?.value.trim();
         const encodedKey = spec.api_key || cfg.api_key;
@@ -446,6 +446,44 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             const detail = await response.text();
             throw new Error(`${response.status}: ${detail || response.statusText}`);
         }
+
+        if (payload.stream) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "", answer = "";
+
+            while (true) {
+                const {value, done} = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, {stream: true});
+                const events = buffer.split(/\r?\n\r?\n/);
+                buffer = events.pop();
+
+                for (const event of events) {
+                    const data = event.match(/^data:\s*(.*)$/m)?.[1];
+                    if (!data || data === "[DONE]") continue;
+
+                    const choice = JSON.parse(data).choices?.[0];
+                    const chunk = api === "chat"
+                        ? choice?.delta?.content : choice?.text;
+
+                    if (chunk) {
+                        answer += chunk;
+                        onChunk(chunk);
+                    }
+                }
+            }
+
+            if (!answer) throw new Error("The model returned no text.");
+            return {
+                api,
+                choice: api === "chat"
+                    ? {message: {content: answer}}
+                    : {text: answer}
+            };
+        }
+
         const data = await response.json();
         const choice = data.choices?.[0];
         if (!choice) {
@@ -503,7 +541,15 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         write("You: " + text);
 
         try {
-            const {api, choice} = await ask(turn);
+            let streamed = false;
+            const {api, choice} = await ask(turn, true, chunk => {
+                if (!streamed) {
+                    write("Model: ");
+                    streamed = true;
+                }
+                log.lastElementChild.lastChild.textContent += chunk;
+                log.scrollTop = log.scrollHeight;
+            });
             const message = choice.message;
             const calls = api === "chat" && tools.length
                 ? (message?.tool_calls || [])
@@ -527,7 +573,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
                     throw responseError("The model returned no text.", choice);
                 }
                 history = [...turn, {role: "assistant", content: answer}];
-                write("Model: " + answer);
+                if (!streamed) write("Model: " + answer);
             }
         } catch (error) {
             write("Error: " + error.message);
@@ -887,7 +933,7 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             f'min="{control["min"]}" '
             f'max="{control["max"]}" '
             f'step="{control.get("step", 1)}" '
-            f'value="{cfg.get("parameters", {}).get(name, control["min"])}">'
+            f'value="{cfg.get("parameters", {}).get(name, control["min"])}"/>'
             f'</label>'
             for name, control in cfg.get("controls", {}).items()
         )
@@ -896,7 +942,7 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
             '<label>API key: '
             '<input type="password" class="llm-key" '
             'placeholder="Optional: use your own key" '
-            'autocomplete="off"></label>'
+            'autocomplete="off" /></label>'
             if cfg.get("key_field") else ""
         )
 
