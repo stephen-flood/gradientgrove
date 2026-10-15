@@ -68,6 +68,138 @@ def theme_to_css(theme):
 
     return ":root { " + " ".join(declarations) + " }"
 
+PYODIDE_JS = r"""
+<script>
+function getPyodide() {
+    pythonAppPyodide ??= (async () => {
+        const base = "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/";
+        if (!globalThis.loadPyodide) {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement("script");
+                script.src = base + "pyodide.js";
+                script.onload = resolve;
+                script.onerror = () => {
+                    script.remove();
+                    reject(new Error("Could not load Pyodide. Please try again."));
+                };
+                document.head.append(script);
+            });
+        }
+        return globalThis.loadPyodide({indexURL: base});
+    })().catch(error => {
+        pythonAppPyodide = null;
+        throw error;
+    });
+    return pythonAppPyodide;
+}
+
+// One interpreter shared by every Python app.
+let pythonAppPyodide = null;
+let pythonAppNamespace = null;
+let pythonAppQueue = Promise.resolve();
+
+let pythonAppOutput = null;
+
+globalThis.pythonAppInput = prompt => new Promise((resolve, reject) =>  {
+
+    globalThis.cancelPythonInput = () =>
+        reject(new Error("Input cancelled"));
+
+    const row = document.createElement("div");
+    const label = document.createElement("span");
+    const input = document.createElement("input");
+
+    label.textContent = prompt;
+    input.type = "text";
+
+    row.append(label, input);
+    pythonAppOutput.append(row);
+
+    input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+
+        event.preventDefault();
+        input.disabled = true;
+        
+        globalThis.cancelPythonInput = null;
+
+        resolve(input.value);
+    });
+
+    input.focus();
+});
+
+function runVisiblePythonApps() {
+    for (const app of document.querySelectorAll(".python-app:not(.python-edit)")) {
+        if (app.dataset.ran || !app.getClientRects().length) continue;
+
+        app.dataset.ran = "true";
+        pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+    }
+}
+
+async function runPythonApp(app) {
+    const output = app.querySelector(".python-app-output");
+    
+    pythonAppOutput = output;
+
+    const source = app.querySelector(".python-app-source").value;
+
+    const write = text =>
+        output.append(document.createTextNode(text + "\\n"));
+
+    output.replaceChildren();
+
+    try {
+        const pyodide = await getPyodide();
+
+        pyodide.setStdout({ batched: write });
+        pyodide.setStderr({ batched: write });
+
+        // Make Python input() wait for our inline field.
+        await pyodide.runPythonAsync(`
+        import builtins
+        from js import pythonAppInput
+        from pyodide.ffi import run_sync
+
+        def _inline_input(prompt=""):
+            return run_sync(pythonAppInput(prompt))
+
+        builtins.input = _inline_input
+        `);
+
+        // Reset variables unless {persist} is specified.
+        if (!pythonAppNamespace || app.dataset.persist !== "true") {
+            pythonAppNamespace?.destroy();
+            pythonAppNamespace = pyodide.runPython("dict()");
+        }
+
+        await pyodide.runPythonAsync(source, {
+            globals: pythonAppNamespace
+        });
+    } catch (error) {
+        write(String(error));
+    }
+}
+
+// Autorun apps on the landing page or selected activity.
+setTimeout(runVisiblePythonApps, 0);
+
+// Also run apps revealed inside expandable details.
+document.addEventListener("toggle", () => {
+    setTimeout(runVisiblePythonApps, 0);
+}, true);
+
+
+document.addEventListener("click", event => {
+    const app = event.target.closest(".python-run")?.closest(".python-edit");
+    if (!app) return;
+
+    pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
+});
+</script>
+"""
+
 HTML_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -99,8 +231,6 @@ HTML_TEMPLATE = """<!doctype html>
 {activities}
 
 </main>
-
-<script src="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.js"></script>
 
 <script>
 const activity = new URLSearchParams(location.search).get("activity");
@@ -173,117 +303,11 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
 
     element.appendChild(button);
 }});
+</script>
 
-// One interpreter shared by every Python app.
-let pythonAppPyodide = null;
-let pythonAppNamespace = null;
-let pythonAppQueue = Promise.resolve();
+{PYODIDE_JS}
 
-let pythonAppOutput = null;
-
-globalThis.pythonAppInput = prompt => new Promise((resolve, reject) =>  {{
-
-    globalThis.cancelPythonInput = () =>
-        reject(new Error("Input cancelled"));
-
-    const row = document.createElement("div");
-    const label = document.createElement("span");
-    const input = document.createElement("input");
-
-    label.textContent = prompt;
-    input.type = "text";
-
-    row.append(label, input);
-    pythonAppOutput.append(row);
-
-    input.addEventListener("keydown", event => {{
-        if (event.key !== "Enter") return;
-
-        event.preventDefault();
-        input.disabled = true;
-        
-        globalThis.cancelPythonInput = null;
-
-        resolve(input.value);
-    }});
-
-    input.focus();
-}});
-
-function runVisiblePythonApps() {{
-    for (const app of document.querySelectorAll(".python-app:not(.python-edit)")) {{
-        if (app.dataset.ran || !app.getClientRects().length) continue;
-
-        app.dataset.ran = "true";
-        pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
-    }}
-}}
-
-async function runPythonApp(app) {{
-    const output = app.querySelector(".python-app-output");
-    
-    pythonAppOutput = output;
-
-    const source = app.querySelector(".python-app-source").value;
-
-    const write = text =>
-        output.append(document.createTextNode(text + "\\n"));
-
-    output.replaceChildren();
-
-    try {{
-        pythonAppPyodide ??= loadPyodide();
-        const pyodide = await pythonAppPyodide;
-
-        pyodide.setStdout({{ batched: write }});
-        pyodide.setStderr({{ batched: write }});
-        //pyodide.setStdin({{
-        //    stdin: () => window.prompt("Python input:") ?? ""
-        //}});
-
-        // Make Python input() wait for our inline field.
-        await pyodide.runPythonAsync(`
-        import builtins
-        from js import pythonAppInput
-        from pyodide.ffi import run_sync
-
-        def _inline_input(prompt=""):
-            return run_sync(pythonAppInput(prompt))
-
-        builtins.input = _inline_input
-        `);
-
-        // Reset variables unless {{persist}} is specified.
-        if (!pythonAppNamespace || app.dataset.persist !== "true") {{
-            pythonAppNamespace?.destroy();
-            pythonAppNamespace = pyodide.runPython("dict()");
-        }}
-
-        await pyodide.runPythonAsync(source, {{
-            globals: pythonAppNamespace
-        }});
-    }} catch (error) {{
-        write(String(error));
-    }}
-}}
-
-// Autorun apps on the landing page or selected activity.
-setTimeout(runVisiblePythonApps, 0);
-
-// Also run apps revealed inside expandable details.
-document.addEventListener("toggle", () => {{
-    setTimeout(runVisiblePythonApps, 0);
-}}, true);
-
-
-document.addEventListener("click", event => {{
-    const app = event.target.closest(".python-run")?.closest(".python-edit");
-    if (!app) return;
-
-    pythonAppQueue = pythonAppQueue.then(() => runPythonApp(app));
-}});
-
-
+<script>
 // LLM chat
 document.querySelectorAll(".llm-chat").forEach(root => {{
     const cfg = JSON.parse(root.querySelector(".llm-config").value);
@@ -1244,6 +1268,7 @@ def render(source, title, theme=None, exercise_position="bottom"):
         topnav="\n".join(topnav),
         activity_list="\n".join(activity_list),
         activities="\n".join(activity_html),
+        PYODIDE_JS=PYODIDE_JS,
     )
 
 
