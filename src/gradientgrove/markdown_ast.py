@@ -621,6 +621,7 @@ backgroundcolor=\color{white!95!black},breaklines=true,keepspaces=true,showstrin
 
 % Boxes / exercises
 \usepackage[most]{tcolorbox}
+\tcbset{breakable}
 \newcounter{exercise}
 \newenvironment{exercise}{\refstepcounter{exercise}\par\medskip\noindent\textbf{Exercise \theexercise.}\ }{\par\medskip}
 \newenvironment{answer}{\par\smallskip\noindent\textit{Answer (Exercise \theexercise).}\begin{tcolorbox}[boxrule=.4pt,left=1em,right=1em,top=.5em,bottom=.5em]}{\dotfill$\square$\end{tcolorbox}}
@@ -684,38 +685,19 @@ BOOK_HEADER_TEMPLATE = Template(r"""
 
 \let\latexframe\frame
 
-% % Failed Hack to use marign footnotes inside tcolorboxes
-% \let\tuftemarginnote\marginnote
-% \let\marginnote\relax
-% \usepackage{marginnote}
-% \let\realmarginpar\marginnote
-% \let\marginnote\tuftemarginnote
-
 \renewenvironment{frame}[1][]{%
   \@ifnextchar\bgroup{\gg@frametitled}{\gg@frameplain}%
 }{%
-  \end{tcolorbox}%
+  \par\medskip
 }
 
 \newcommand{\gg@frametitled}[1]{%
-  \begin{tcolorbox}[
-    blanker,
-    breakable,
-    title={#1},
-    parbox=false,
-    coltitle=black,
-    fonttitle=\bfseries,
-%     before upper={\let\marginpar\realmarginpar}
-  ]%
+  \par\medskip
+  \noindent\textbf{#1}\par\nobreak\smallskip
 }
 
 \newcommand{\gg@frameplain}{%
-  \begin{tcolorbox}[
-    blanker,
-    parbox=false,
-    breakable,
-%     before upper={\let\marginpar\realmarginpar}
-  ]%
+  \par\medskip
 }
 
 \makeatother

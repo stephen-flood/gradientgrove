@@ -411,33 +411,148 @@ def convert_file(filename, output_directory, *,
     if worksheet:
         tree = build_tree(
             text,
-            omit_envs=["answer", "todo"],
+            # omit_envs=["answer", "todo"],
+            omit_envs=["todo"],
             number=False,
             render_latex_fences=False,
             ignore_exercise_layout=False,
         )
 
-        exercises = [
-            node
-            for node in tree.walk()
-            if node.name == "exercise"
-        ]
+        # exercises = [
+        #     node
+        #     for node in tree.walk()
+        #     if node.name == "exercise"
+        # ]
 
+        # tree.children = []
+
+        # for exercise in exercises:
+        #     if (exercise.title or "").strip().lower() == "newpage":
+        #         tree.children.append(
+        #             SyntaxTree(
+        #                 kind="admonition",
+        #                 name="newpage",
+        #                 tag="div",
+        #             )
+        #         )
+        #         exercise.title = None
+
+        #     tree.children.append(exercise)
+
+        # items = [n for n in tree.walk() if n.name in {"chapter", "exercise"}]
+        # tree.children = []
+
+        # for node in items:
+        #     if node.name == "chapter":
+        #         node.kind = "element"
+        #         node.name = node.tag = "h1"
+        #         node.text = node.title
+
+        #     elif (node.title or "").strip().lower() == "newpage":
+        #         tree.children.append(
+        #             SyntaxTree(kind="admonition", name="newpage", tag="div")
+        #         )
+        #         node.title = None
+
+        #     tree.children.append(node)
+
+        # items = [n for n in tree.walk() if n.name in {"chapter", "exercise"}]
+        # tree.children = []
+
+        # if not any(n.name == "chapter" for n in items):
+        #     tree.children.append(SyntaxTree(name="h1", tag="h1", text=title))
+
+        # first_section = True
+        # for node in items:
+        #     if node.name == "chapter":
+
+        #         if book and not first_section:
+        #             tree.children.append(
+        #                 SyntaxTree(kind="admonition", name="newpage", tag="div")
+        #             )
+
+        #         tree.children.append(
+        #             SyntaxTree(name="h1", tag="h1", text=node.title)
+        #         )
+        #         first_section = False
+        #         continue
+
+        #     if (node.title or "").strip().lower() == "newpage":
+        #         tree.children.append(
+        #             SyntaxTree(kind="admonition", name="newpage", tag="div")
+        #         )
+        #         node.title = None
+
+        #     tree.children.append(node)
+            
+
+        items = [n for n in tree.walk()
+                if n.name in {"chapter", "exercise", "answer"}]
         tree.children = []
 
-        for exercise in exercises:
-            if (exercise.title or "").strip().lower() == "newpage":
+        answers = []
+        source_title = title
+        heading = title if not book else None
+        have_section = False
+        exercise_no = 0
+
+        for node in items:
+            if node.name == "chapter":
+                heading = node.title
+                source_title = node.title
+                continue
+
+            if node.name == "answer":
+                if exercise_no:
+                    answers.append((source_title, exercise_no, node))
+                continue
+
+            # Exercise
+            exercise_no += 1
+            node.prune_envs({"answer"})
+
+            if heading:
+                if book and have_section:
+                    tree.children.append(
+                        SyntaxTree(kind="admonition", name="newpage", tag="div")
+                    )
+                tree.children.append(
+                    SyntaxTree(name="h1", tag="h1", text=heading)
+                )
+                have_section = True
+                heading = None
+
+            if (node.title or "").strip().lower() == "newpage":
+                tree.children.append(
+                    SyntaxTree(kind="admonition", name="newpage", tag="div")
+                )
+                node.title = None
+
+            tree.children.append(node)
+
+        # Answer key
+        if answers:
+            tree.children.extend([
+                SyntaxTree(kind="admonition", name="newpage", tag="div"),
+                SyntaxTree(name="h1", tag="h1", text="Answers"),
+            ])
+
+            last_section = None
+            for section, number, answer in answers:
+                if section != last_section:
+                    tree.children.append(
+                        SyntaxTree(name="h2", tag="h2", text=section)
+                    )
+                    last_section = section
+
                 tree.children.append(
                     SyntaxTree(
-                        kind="admonition",
-                        name="newpage",
-                        tag="div",
+                        kind="admonition", name="latexraw", tag="div",
+                        text=rf"\setcounter{{exercise}}{{{number}}}"
                     )
                 )
-                exercise.title = None
-
-            tree.children.append(exercise)
-
+                tree.children.append(answer)                
+                            
         resolve_local_image_paths(tree, image_base)
 
         variant = version_str + "-worksheet"
@@ -449,7 +564,11 @@ def convert_file(filename, output_directory, *,
             beamer=False,
         )
 
+        # Unnumbered sections
+        # output = output.replace(r"\section{", r"\section*{")
+
         # Insert worksheet headers
+        toc_tex = "\\tableofcontents\n\\clearpage" if book else ""
         output = output.replace(
             r"\begin{document}",
             rf"""
@@ -464,11 +583,15 @@ def convert_file(filename, output_directory, *,
             \renewcommand{{\headrulewidth}}{{0pt}}
             %\setlength{{\headheight}}{{2.5\baselineskip}} % to make fancyhdr not complain
 
+            \setcounter{{secnumdepth}}{{0}}
+            \setcounter{{tocdepth}}{{2}}
+
             \setlength{{\tabcolsep}}{{3em}} % for the horizontal padding
             \renewcommand{{\arraystretch}}{{3}}% for the vertical padding
 
             \begin{{document}}
             \null
+            {toc_tex}
             """,
                 1,
             )
@@ -580,7 +703,8 @@ def main():
         "tex" : args.all or args.tex or args.pdf,
         "worksheet" : args.all or args.worksheet,
         "tex_handout" : args.all or args.pdf_handout ,
-        "beamer" : args.all or args.beamer ,
+        # "beamer" : args.all or args.beamer ,
+        "beamer" : args.beamer ,  # Only do beamer if requested
         "version" : args.version,
     }
 

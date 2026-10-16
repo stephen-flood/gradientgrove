@@ -923,3 +923,19 @@ pre {
     overflow: auto;
     white-space: pre;
 }
+
+.llm-token {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: none;
+    padding: 0;
+    white-space: pre-wrap;
+    cursor: pointer;
+}
+
+.llm-token:hover,
+.llm-token:focus-visible {
+    background: var(--gg-bg);
+    text-decoration: underline;
+}

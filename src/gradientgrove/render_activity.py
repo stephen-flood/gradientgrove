@@ -436,6 +436,8 @@ document.querySelectorAll(".llm-chat").forEach(root => {
                 write((m.role === "user" ? "You: " : "Model: ") + m.content);
         });
         prompt.value = "";
+        send.textContent = (cfg.models[model.value].api || cfg.api) === "completion"
+            ? "Complete (current prompt only)" : "Send";    
         busy(false);
     }
 
@@ -472,7 +474,10 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             payload.prompt = turn.at(-1).content;
         }
 
-        payload.stream = api === "completion" || !tools.length;
+        // payload.stream = api === "completion" || !tools.length;
+        payload.stream = api === "completion"
+            ? !payload.logprobs
+            : !tools.length;
 
         const userKey = root.querySelector(".llm-key")?.value.trim();
         const encodedKey = spec.api_key || cfg.api_key;
@@ -606,6 +611,48 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         return result;
     }
 
+    function showLogprobs(choice) {
+        const lp = choice.logprobs;
+        if (!lp?.tokens?.length) return;
+
+        const box = log.lastElementChild;
+        box.lastChild.remove(); // Replace plain completion text with tokens.
+
+        const probabilities = document.createElement("pre");
+        probabilities.hidden = true;
+
+        lp.tokens.forEach((token, i) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "llm-token";
+            button.textContent = token;
+            button.title = "Click for token probabilities";
+
+            button.onclick = () => {
+                const candidates = {...(lp.top_logprobs?.[i] || {})};
+
+                // Include the generated token even if it is not in the top alternatives.
+                if (lp.token_logprobs?.[i] != null)
+                    candidates[token] = lp.token_logprobs[i];
+
+                probabilities.textContent =
+                    `Token ${i + 1}: ${JSON.stringify(token)}\n` +
+                    Object.entries(candidates)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([t, p]) =>
+                            `${t === token ? "→ " : "  "}${JSON.stringify(t)}: ` +
+                            `${(100 * Math.exp(p)).toFixed(1)}%`
+                        ).join("\n");
+
+                probabilities.hidden = false;
+            };
+
+            box.append(button);
+        });
+
+        box.append(probabilities);
+    }
+
     send.onclick = async () => {
         const text = prompt.value.trim();
         if (!text || send.disabled) return;
@@ -648,6 +695,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
                 }
                 history = [...turn, {role: "assistant", content: answer}];
                 if (!streamed) write("Model: " + answer);
+                if (api === "completion") showLogprobs(choice);
             }
         } catch (error) {
             write("Error: " + error.message);
@@ -817,10 +865,10 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
     url = config["url"]
     title = config.get("title", "Embedded content")
 
-    width = config.get("width", "100%")
-    height = config.get("height", "100%")
-    # width = config.get("width", "117.65%")
-    # height = config.get("height", "1030px")
+    # width = config.get("width", "100%")
+    # height = config.get("height", "100%")
+    width = config.get("width", "117.65%")
+    height = config.get("height", "1030px")
 
     def encode(values):
         return urlencode({
