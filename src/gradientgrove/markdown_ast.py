@@ -666,7 +666,8 @@ BOOK_HEADER_TEMPLATE = Template(r"""
 \renewcommand{\allcaps}[1]{\textls[150]{\MakeTextUppercase{#1}}}
 \renewcommand{\smallcaps}[1]{\textls[75]{\textsmallcaps{\MakeTextLowercase{#1}}}}
 
-% Tufte LuaLaTeX font repair
+% Tufte LuaLaTeX font repair using `tex-gyre` package
+% 
 \setmainfont[Numbers=OldStyle]{TeX Gyre Pagella}
 \setsansfont[Scale=0.90]{TeX Gyre Heros}
 \setmonofont[Scale=0.85]{TeX Gyre Cursor}
@@ -674,7 +675,7 @@ BOOK_HEADER_TEMPLATE = Template(r"""
 
 % Parskip behavior
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.8\baselineskip}
+\setlength{\parskip}{0.3\baselineskip}
 \setlength{\RaggedRightParindent}{0pt}
 \setlength{\JustifyingParindent}{0pt}
 

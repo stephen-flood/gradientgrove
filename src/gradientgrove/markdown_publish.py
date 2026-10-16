@@ -248,6 +248,15 @@ def convert_mkdocs_directory(path, output_directory, *, page_zip=True, **options
             source = Path(page.file.abs_src_path)
             text, meta = get_data(source.read_text(encoding="utf-8"))
 
+            # Hack: Rewrite image paths relative to the ORIGINATING file
+            # This lets me have an img/ directory inside of a subdirectory like notes/
+            folder = Path(page.file.src_uri).parent
+            text = re.sub(
+                r'(!\[[^\]]*\]\()(img/[^)\s]+)',
+                lambda m: m[1] + (folder / m[2]).as_posix(),
+                text,
+            )
+
             title = meta.get("title", source.stem.replace("-", " ").replace("_", " ").title())
 
             rel = Path(page.file.src_uri)
