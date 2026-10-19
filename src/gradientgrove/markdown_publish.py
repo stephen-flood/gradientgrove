@@ -629,6 +629,19 @@ def convert_file(filename, output_directory, *,
         # Do/don't include tex in zip 
         # generated.append(output_file)
 
+    # Insert custom LaTeX preamble from YAML frontmatter
+    header = meta.get("latex_preamble", "")
+    #
+    if header and not book:
+        for tex_file in tex_generated:
+            output = tex_file.read_text(encoding="utf-8")
+            output = output.replace(
+                r"\begin{document}",
+                header.rstrip() + "\n" + r"\begin{document}",
+                1,
+            )
+            tex_file.write_text(output, encoding="utf-8")
+
     # Compile LaTeX output
     for output in tex_generated:
         print("Compiling", output)

@@ -161,7 +161,7 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
         if node.name == "vspace":
             amount = (node.title or "").strip()
             if amount.lower() in {"", "vspace"}:
-                amount = "1in"
+                amount = "1cm"
             return f"\n\\vspace{{{amount}}}\n"
 
         if node.name == "vspacebox":
@@ -210,7 +210,7 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
                     questions_started = True
                 out += render(c)
             if questions_started:
-                out += "\n\\end{enumerate}\\n"
+                out += "\n\\end{enumerate}\n"
             return out
 
         if node.name == "question":
@@ -225,7 +225,9 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
                 if c.name =="question" and not has_subparts:
                         out += "\n\\begin{enumerate}\n"
                         has_subparts = True
-                out += render(c)
+
+                # out += render(c)
+                out += render(c).lstrip("\n") if c.name == "p" and not has_subparts else render(c)
 
             if has_subparts:
                 out += "\\end{enumerate}\n"
@@ -248,7 +250,7 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
 
             return (
                 "\n\\begin{center}\n"
-                + "\\setlength{\\tabcolsep}{1em} \n {\\renewcommand{\\arraystretch}{1.75} \n"
+                + "\\setlength{\\tabcolsep}{1em} \n \\renewcommand{\\arraystretch}{1.75} \n"
                 + "\\begin{tabular}{"+cols+"}\n\\hline\n"
                 + title_row + " & Total \\\\ \\hline \n"
                 + points_row + " & " + str(total) + "\\\\ \\hline \n"
@@ -283,6 +285,11 @@ def render_latex_fast(root, omit_envs=None, transparent_envs=None):
                 width = "\\linewidth"
 
             return rf"\includegraphics[width={width}]{{{src}}}"
+
+        # Hack to allow inline latex 
+        # `\dotfill`{.latexraw}   inserts \dotfill into latex output
+        if node.name == "code" and "latexraw" in node.attrs.get("class", "").split():
+            return raw(node)
 
         if key not in LATEX_RULES:
             if node.kind in {"admonition", "details"}:

@@ -634,7 +634,7 @@ backgroundcolor=\color{white!95!black},breaklines=true,keepspaces=true,showstrin
 
 
 ARTICLE_HEADER_TEMPLATE = Template(r"""
-\documentclass{article}
+\documentclass[11pt]{article}
 
 \usepackage{beamerarticle}
 \usepackage[margin=1in,paperwidth=8.5in,paperheight=11in]{geometry}
@@ -659,7 +659,7 @@ $dateline
 """.strip())
 
 BOOK_HEADER_TEMPLATE = Template(r"""
-\documentclass[titlepage,nols]{tufte-book}
+\documentclass[titlepage,nols,11pt]{tufte-book}
 
 % Modern replacement for Tufte's old soul letterspacing
 \usepackage{microtype}
@@ -1664,6 +1664,14 @@ class SyntaxTree:
                 "div",
                 {"class": "gg-vspace gg-vfillbox", "style": f"height: {amount}"}
             )
+            el.tail = self.tail
+            return el
+
+        # Hack to allow inline latex 
+        # `\dotfill`{.latexraw} inserts \dotfill into latex output
+        # Here, ignore for html output
+        if self.name == "code" and "latexraw" in self.attrs.get("class", "").split():
+            el = ET.Element("span")
             el.tail = self.tail
             return el
         
