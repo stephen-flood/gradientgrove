@@ -199,6 +199,10 @@ document.querySelectorAll("blockquote, pre").forEach(element => {{
 </script>
 
 <script>
+{llm_local_js}
+</script>
+
+<script>
 {llm_chat_js}
 </script>
 
@@ -479,6 +483,19 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             ? !payload.logprobs
             : !tools.length;
 
+        
+
+        // Local inference using Transformers.js
+        if (spec.backend === "transformersjs") {
+            const choice = await ggAskLocal(
+                spec, api, payload, onChunk,
+                status => { send.textContent = status; },
+                template => write("Serialized chat prompt:\n" + template)
+            );
+            return {api, choice};
+        }
+
+        // Remote API handling 
         const userKey = root.querySelector(".llm-key")?.value.trim();
         const encodedKey = spec.api_key || cfg.api_key;
         const key = userKey || (encodedKey ? atob(encodedKey) : "");
@@ -659,6 +676,9 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         const turn = [...history, {role: "user", content: text}];
         prompt.value = "";
         busy(true);
+
+        const normalSendLabel = send.textContent;
+
         write("You: " + text);
 
         try {
@@ -701,6 +721,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             write("Error: " + error.message);
             prompt.value = text;
         } finally {
+            send.textContent = normalSendLabel;
             busy(false);
         }
     };
@@ -751,6 +772,178 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     reset();
 });
 """
+
+
+LLM_LOCAL_JS = r"""
+function localLLMWorker() {
+    let lib, llm, modelId, queue = Promise.resolve();
+    const send = (id, type, data = {}) => postMessage({id, type, ...data});
+
+    async function run({id, spec, api, payload}) {
+        const {pipeline, TextStreamer, LogitsProcessor, env} = lib ??=
+            await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
+        env.allowLocalModels = false;
+        env.backends.onnx.wasm.numThreads = 1;
+
+        // Load model, preferring GPU with CPU fallback.
+        if (modelId !== spec.model_id) {
+            await llm?.dispose();
+            llm = null;
+            modelId = null;
+            send(id, 'status', {text: 'Loading model...'});
+            const load = (device, dtype) =>
+                pipeline('text-generation', spec.model_id, {device, dtype});
+            try {
+                if (!await navigator.gpu?.requestAdapter())
+                    throw Error('No usable WebGPU adapter');
+                llm = await load('webgpu', 'q4f16');
+            } catch {
+                send(id, 'status', {text: 'Using CPU...'});
+                llm = await load('wasm', 'q8');
+            }
+            modelId = spec.model_id;
+        }
+
+        if (api === 'chat' && payload.tools?.length)
+            throw Error('Local tool calling is not yet supported.');
+
+        const t = llm.tokenizer;
+        if (api === 'chat' && spec.show_template)
+            send(id, 'template', {text: t.apply_chat_template(
+                payload.messages,
+                {tokenize: false, add_generation_prompt: true}
+            )});
+
+        const n = api === 'completion'
+            ? Math.max(0, Math.min(10, Math.floor(Number(payload.logprobs) || 0)))
+            : 0;
+
+        const probs = {tokens: [], token_logprobs: [], top_logprobs: []};
+        const token = i => t.decode([i], {
+            skip_special_tokens: false,
+            clean_up_tokenization_spaces: false
+        });
+        let next, answer = '';
+
+        // Capture the probability distribution before sampling.
+        class Capture extends LogitsProcessor {
+            _call(ids, logits) {
+                const a = logits[0].data, top = [];
+
+                for (let i = 0; i < a.length; i++) {
+                    const j = top.findIndex(k => a[i] > a[k]);
+                    if (j >= 0) top.splice(j, 0, i);
+                    else if (top.length < n) top.push(i);
+                    if (top.length > n) top.pop();
+                }
+
+                const m = a[top[0]];
+                const z = m + Math.log(
+                    top.reduce((s, i) => s + Math.exp(a[i] - m), 0)
+                );
+
+                next = {a, top, z};
+                return logits;
+            }
+        }
+
+
+        const streamer = new TextStreamer(t, {
+            skip_prompt: true,
+            callback_function: chunk => {
+                answer += chunk;
+                send(id, 'chunk', {chunk});
+            },
+            token_callback_function: ids => {
+                if (!next) return;
+                const {a, top, z} = next;
+                for (const k of ids) {
+                    const i = Number(k);
+                    probs.tokens.push(token(i));
+                    probs.token_logprobs.push(a[i] - z);
+                    probs.top_logprobs.push(Object.fromEntries(
+                        top.map(j => [token(j), a[j] - z])
+                    ));
+                }
+                next = null;
+            }
+        });
+
+        const temperature = Number(payload.temperature ?? 1);
+        send(id, 'status', {text: 'Generating...'});
+        await llm(api === 'chat' ? payload.messages : payload.prompt, {
+            max_new_tokens: Math.max(1, Math.min(2048,
+            Math.floor(Number(
+                payload.max_tokens ?? (api === "chat" ? 512 : 32)
+            )))),
+            do_sample: temperature > 0,
+            temperature: temperature > 0 ? temperature : 1,
+            //top_k: Number(payload.top_k ?? 50),
+            top_k: n || 5,
+            streamer,
+            logits_processor: n ? [new Capture()] : []
+        });
+
+        const choice = api === 'chat'
+            ? {message: {content: answer}}
+            : {text: answer};
+        if (n) choice.logprobs = probs;
+        send(id, 'done', {choice});
+    }
+
+    self.onmessage = ({data}) => {
+        queue = queue.then(() => run(data)).catch(e =>
+            send(data.id, 'error', {message: String(e.message || e)}));
+    };
+}
+
+// Main-thread interface.
+let ggWorker, ggNext = 0;
+const ggJobs = new Map();
+
+function ggAskLocal(spec, api, payload, onChunk, onStatus, onTemplate) {
+    if (!ggWorker) {
+        const url = URL.createObjectURL(new Blob(
+            [`(${localLLMWorker.toString()})();`],
+            {type: 'text/javascript'}
+        ));
+        ggWorker = new Worker(url, {type: 'module'});
+        URL.revokeObjectURL(url);
+
+        ggWorker.onmessage = ({data: d}) => {
+            const j = ggJobs.get(d.id);
+            if (!j) return;
+            if (d.type === 'chunk') j.onChunk(d.chunk);
+            if (d.type === 'status') j.onStatus(d.text);
+            if (d.type === 'template') j.onTemplate(d.text);
+            if (d.type === 'done' || d.type === 'error') {
+                ggJobs.delete(d.id);
+                d.type === 'done'
+                    ? j.resolve(d.choice)
+                    : j.reject(Error(d.message));
+            }
+        };
+
+        ggWorker.onerror = e => {
+            ggJobs.forEach(j => j.reject(
+                Error(e.message || 'Worker failed')
+            ));
+            ggJobs.clear();
+            ggWorker.terminate();
+            ggWorker = null;
+        };
+    }
+
+    const id = ++ggNext;
+    return new Promise((resolve, reject) => {
+        ggJobs.set(id, {
+            resolve, reject, onChunk, onStatus, onTemplate
+        });
+        ggWorker.postMessage({id, spec, api, payload});
+    });
+}
+"""
+
 
 # LLM_CHAT_JS = r"""
 # // LLM chat
@@ -1005,10 +1198,18 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
                 raise ValueError("Each model must contain name and endpoint")
             if "name" not in model:
                 raise ValueError("Each model requires a name")
-            if "endpoint" not in model:
-                raise ValueError(
-                    f'Model "{model["name"]}" requires an endpoint'
-                )
+            # if "endpoint" not in model:
+            #     raise ValueError(
+            #         f'Model "{model["name"]}" requires an endpoint'
+            #     )
+            if model.get("backend") == "transformersjs":
+                if not model.get("model_id"):
+                    raise ValueError("Local model requires model_id")
+            elif "endpoint" not in model:
+                raise ValueError("Remote model requires endpoint")
+
+
+            
 
             api = model.get("api", cfg.get("api", "chat"))
             if api not in ("chat", "completion"):
@@ -1391,6 +1592,7 @@ def render(source, title, theme=None, exercise_position="bottom",
         activities="\n".join(activity_html),
         pyodide_js=PYODIDE_JS,
         llm_chat_js=LLM_CHAT_JS,
+        llm_local_js=LLM_LOCAL_JS,
         arrow_navigation=arrow_navigation,
     )
 
