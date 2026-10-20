@@ -476,14 +476,29 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             ? [{role: "system", content: system}, ...turn]
             : turn;
 
-        const payload = {
-            model: model.value,
+        // pull parameters from config
+        const parameters = {
             ...cfg.parameters,
             ...spec.parameters
         };
+
         root.querySelectorAll(".llm-control").forEach(control => {
-            payload[control.dataset.param] = Number(control.value);
+            parameters[control.dataset.param] = Number(control.value);
         });
+
+        const payload = {
+            model: model.value,
+            ...parameters
+        };
+
+        // const payload = {
+        //    model: model.value,
+        //    ...cfg.parameters,
+        //    ...spec.parameters
+        //};
+        //root.querySelectorAll(".llm-control").forEach(control => {
+        //    payload[control.dataset.param] = Number(control.value);
+        //});
 
         if (api === "chat") {
             payload.messages = messages;
@@ -507,7 +522,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         // Local inference using Transformers.js
         if (spec.backend === "transformersjs") {
             const choice = await ggAskLocal(
-                spec, api, payload, onChunk,
+                spec, api, {...payload, parameters}, onChunk,
                 status => { send.textContent = status; },
                 template => write("Serialized chat prompt:\n" + template)
             );
@@ -806,6 +821,14 @@ function localLLMWorker() {
 
         // Load model, preferring GPU with CPU fallback.
         if (modelId !== spec.model_id) {
+
+            // extract parameters
+            const {
+                model, messages: _, prompt: __, tools, tool_choice,
+                parallel_tool_calls, stream, logprobs, max_tokens,
+                ...generation
+            } = payload;
+
             await llm?.dispose();
             llm = null;
             modelId = null;
@@ -858,7 +881,7 @@ function localLLMWorker() {
 
         if (api === 'chat' && spec.show_template)
             send(id, 'template', {text: t.apply_chat_template(
-                payload.messages,
+                messages,
                 {tokenize: false, add_generation_prompt: true}
             )});
 
@@ -900,8 +923,8 @@ function localLLMWorker() {
             skip_prompt: true,
             callback_function: chunk => {
                 answer += chunk;
-                send(id, 'chunk', {chunk});
-                // if (!toolMode) send(id, 'chunk', {chunk});
+                // send(id, 'chunk', {chunk});
+                if (!toolMode) send(id, 'chunk', {chunk});
             },
             token_callback_function: ids => {
                 if (!next) return;
@@ -918,20 +941,48 @@ function localLLMWorker() {
             }
         });
 
-        const temperature = Number(payload.temperature ?? 1);
+        
+        const {max_tokens, logprobs, ...generation} = payload.parameters;
+        const temperature = Number(generation.temperature ?? 1);
+
         send(id, 'status', {text: 'Generating...'});
-        await llm(api === 'chat' ? payload.messages : payload.prompt, {
-            max_new_tokens: Math.max(1, Math.min(2048,
-            Math.floor(Number(
-                payload.max_tokens ?? (api === "chat" ? 512 : 32)
+
+        await llm(api === 'chat' ? messages : payload.prompt, {
+            ...generation,
+            max_new_tokens: Math.max(1, Math.min(2048, Math.floor(Number(
+                generation.max_new_tokens ?? max_tokens ??
+                (api === 'chat' ? 512 : 32)
             )))),
-            do_sample: temperature > 0,
+            do_sample: generation.do_sample ?? (temperature > 0),
             temperature: temperature > 0 ? temperature : 1,
-            //top_k: Number(payload.top_k ?? 50),
-            top_k: n || 5,
             streamer,
             logits_processor: n ? [new Capture()] : []
         });
+
+
+        //const temperature = Number(payload.temperature ?? 1);
+        //send(id, 'status', {text: 'Generating...'});
+        //await llm(api === 'chat' ? messages : payload.prompt, {
+        //    ...generation,
+        //    max_new_tokens: Math.max(1, Math.min(2048,
+        //        Math.floor(Number(max_tokens ?? (api === 'chat' ? 512 : 32)))
+        //    )),
+        //    do_sample: temperature > 0,
+        //    streamer,
+        //    logits_processor: n ? [new Capture()] : []
+        //});
+        //await llm(api === 'chat' ? messages : payload.prompt, {
+        //    max_new_tokens: Math.max(1, Math.min(2048,
+        //    Math.floor(Number(
+        //        payload.max_tokens ?? (api === "chat" ? 512 : 32)
+        //    )))),
+        //    do_sample: temperature > 0,
+        //    temperature: temperature > 0 ? temperature : 1,
+        //    //top_k: Number(payload.top_k ?? 50),
+        //    top_k: n || 5,
+        //    streamer,
+        //    logits_processor: n ? [new Capture()] : []
+        //});
 
         // convert JSON into tool call
         let message = {content: answer};
@@ -964,10 +1015,13 @@ function localLLMWorker() {
             }
         }
 
-
         const choice = api === 'chat'
-            ? {message: {content: answer}}
+            ? {message}
             : {text: answer};
+
+        //const choice = api === 'chat'
+        //    ? {message: {content: answer}}
+        //    : {text: answer};
         if (n) choice.logprobs = probs;
         send(id, 'done', {choice});
     }
