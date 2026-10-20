@@ -354,6 +354,24 @@ document.querySelectorAll(".llm-chat").forEach(root => {
     const clear = root.querySelector(".llm-clear");
     const tools = Array.isArray(cfg.tools) ? cfg.tools : [];
 
+    const sourceLink = document.createElement("a");
+    sourceLink.textContent = "Model card";
+    sourceLink.className = "llm-model-source";
+    sourceLink.target = "_blank";
+    sourceLink.rel = "noopener noreferrer";
+    model.after(" ", sourceLink);
+
+    function updateModelLink() {
+        const spec = cfg.models[model.value];
+        const url = spec.model_url || (
+            spec.backend === "transformersjs"
+                ? `https://huggingface.co/${spec.model_id}`
+                : null
+        );
+        sourceLink.hidden = !url;
+        if (url) sourceLink.href = url;
+    }
+
     const run = document.createElement("button");
     run.type = "button";
     run.textContent = "Run tool";
@@ -442,6 +460,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         prompt.value = "";
         send.textContent = (cfg.models[model.value].api || cfg.api) === "completion"
             ? "Complete (current prompt only)" : "Send";    
+        updateModelLink()
         busy(false);
     }
 
@@ -781,7 +800,7 @@ function localLLMWorker() {
 
     async function run({id, spec, api, payload}) {
         const {pipeline, TextStreamer, LogitsProcessor, env} = lib ??=
-            await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1');
+            await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0');
         env.allowLocalModels = false;
         env.backends.onnx.wasm.numThreads = 1;
 
@@ -796,7 +815,8 @@ function localLLMWorker() {
             try {
                 if (!await navigator.gpu?.requestAdapter())
                     throw Error('No usable WebGPU adapter');
-                llm = await load('webgpu', 'q4f16');
+                //llm = await load('webgpu', 'q4f16');
+                llm = await load('webgpu', 'q4');
             } catch {
                 send(id, 'status', {text: 'Using CPU...'});
                 llm = await load('wasm', 'q8');
@@ -804,10 +824,38 @@ function localLLMWorker() {
             modelId = spec.model_id;
         }
 
-        if (api === 'chat' && payload.tools?.length)
-            throw Error('Local tool calling is not yet supported.');
+        //if (api === 'chat' && payload.tools?.length)
+        //    throw Error('Local tool calling is not yet supported.');
 
         const t = llm.tokenizer;
+
+        // Tool calling
+        const toolMode = api === 'chat' && !!payload.tools?.length;
+        let messages = payload.messages;
+
+        if (toolMode) {
+            // Restore previous tool calls as ordinary assistant text.
+            messages = messages.map(m => m.tool_calls
+                ? {role: 'assistant', content: m.tool_call_text}
+                : {role: m.role, content: m.content}
+            );
+
+            const instructions =
+                'List of tools: ' +
+                JSON.stringify(payload.tools.map(t => t.function)) + '\n' +
+                (payload.tool_choice === 'none'
+                    ? 'Use the tool result to answer. Do not call another tool.'
+                    : 'If a tool is needed, output ONLY JSON: ' +
+                    '{"name":"function_name","arguments":{"key":"value"}}. ' +
+                    'Otherwise answer normally.');
+
+            if (messages[0]?.role === 'system')
+                messages[0].content += '\n' + instructions;
+            else
+                messages.unshift({role: 'system', content: instructions});
+        }
+
+
         if (api === 'chat' && spec.show_template)
             send(id, 'template', {text: t.apply_chat_template(
                 payload.messages,
@@ -853,6 +901,7 @@ function localLLMWorker() {
             callback_function: chunk => {
                 answer += chunk;
                 send(id, 'chunk', {chunk});
+                // if (!toolMode) send(id, 'chunk', {chunk});
             },
             token_callback_function: ids => {
                 if (!next) return;
@@ -883,6 +932,38 @@ function localLLMWorker() {
             streamer,
             logits_processor: n ? [new Capture()] : []
         });
+
+        // convert JSON into tool call
+        let message = {content: answer};
+
+        if (toolMode && payload.tool_choice !== 'none') {
+            try {
+                const json = answer.match(/\{[\s\S]*\}/)?.[0];
+                const call = JSON.parse(json);
+
+                if (payload.tools.some(t => t.function.name === call.name) &&
+                    call.arguments &&
+                    typeof call.arguments === 'object' &&
+                    !Array.isArray(call.arguments)) {
+
+                    message = {
+                        content: null,
+                        tool_call_text: answer,
+                        tool_calls: [{
+                            id: `local_${id}`,
+                            type: 'function',
+                            function: {
+                                name: call.name,
+                                arguments: JSON.stringify(call.arguments)
+                            }
+                        }]
+                    };
+                }
+            } catch {
+                // Not a valid JSON tool call; treat as ordinary text.
+            }
+        }
+
 
         const choice = api === 'chat'
             ? {message: {content: answer}}

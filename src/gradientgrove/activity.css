@@ -939,3 +939,14 @@ pre {
     background: var(--gg-bg);
     text-decoration: underline;
 }
+
+.llm-model-source {
+    font-size: 0.8em;
+    opacity: 0.7;
+    text-decoration: none;
+}
+
+.llm-model-source:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
