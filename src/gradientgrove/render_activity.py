@@ -854,36 +854,27 @@ function localLLMWorker() {
 
         // Tool calling
         const toolMode = api === 'chat' && !!payload.tools?.length;
-        let messages = payload.messages;
 
-        if (toolMode) {
-            // Restore previous tool calls as ordinary assistant text.
-            messages = messages.map(m => m.tool_calls
+        const toolSpecs = toolMode
+            ? payload.tools.map(t => t.function)
+            : [];
+
+        const messages = api === 'chat'
+            ? payload.messages.map(m => m.tool_calls
                 ? {role: 'assistant', content: m.tool_call_text}
-                : {role: m.role, content: m.content}
-            );
-
-            const instructions =
-                'List of tools: ' +
-                JSON.stringify(payload.tools.map(t => t.function)) + '\n' +
-                (payload.tool_choice === 'none'
-                    ? 'Use the tool result to answer. Do not call another tool.'
-                    : 'If a tool is needed, output ONLY JSON: ' +
-                    '{"name":"function_name","arguments":{"key":"value"}}. ' +
-                    'Otherwise answer normally.');
-
-            if (messages[0]?.role === 'system')
-                messages[0].content += '\n' + instructions;
-            else
-                messages.unshift({role: 'system', content: instructions});
-        }
-
+                : m
+            )
+            : null;
 
         if (api === 'chat' && spec.show_template)
             send(id, 'template', {text: t.apply_chat_template(
-                messages,
-                {tokenize: false, add_generation_prompt: true}
+                messages, {
+                    tools: toolSpecs,
+                    tokenize: false,
+                    add_generation_prompt: true
+                }
             )});
+
 
         const n = api === 'completion'
             ? Math.max(0, Math.min(10, Math.floor(Number(payload.logprobs) || 0)))
@@ -919,11 +910,11 @@ function localLLMWorker() {
         }
 
 
-        const streamer = new TextStreamer(t, {
+            const streamer = new TextStreamer(t, {
             skip_prompt: true,
+            skip_special_tokens: !toolMode,
             callback_function: chunk => {
                 answer += chunk;
-                // send(id, 'chunk', {chunk});
                 if (!toolMode) send(id, 'chunk', {chunk});
             },
             token_callback_function: ids => {
@@ -941,7 +932,6 @@ function localLLMWorker() {
             }
         });
 
-        
         const {max_tokens, logprobs, ...generation} = payload.parameters;
         const temperature = Number(generation.temperature ?? 1);
 
@@ -949,6 +939,7 @@ function localLLMWorker() {
 
         await llm(api === 'chat' ? messages : payload.prompt, {
             ...generation,
+            ...(toolMode ? {tools: toolSpecs} : {}),
             max_new_tokens: Math.max(1, Math.min(2048, Math.floor(Number(
                 generation.max_new_tokens ?? max_tokens ??
                 (api === 'chat' ? 512 : 32)
@@ -958,7 +949,6 @@ function localLLMWorker() {
             streamer,
             logits_processor: n ? [new Capture()] : []
         });
-
 
         //const temperature = Number(payload.temperature ?? 1);
         //send(id, 'status', {text: 'Generating...'});
@@ -985,33 +975,44 @@ function localLLMWorker() {
         //});
 
         // convert JSON into tool call
-        let message = {content: answer};
+        let message = {role: 'assistant', content: answer};
 
         if (toolMode && payload.tool_choice !== 'none') {
+            let call = null;
+
+            // Default: try JSON.
             try {
                 const json = answer.match(/\{[\s\S]*\}/)?.[0];
-                const call = JSON.parse(json);
-
-                if (payload.tools.some(t => t.function.name === call.name) &&
-                    call.arguments &&
-                    typeof call.arguments === 'object' &&
-                    !Array.isArray(call.arguments)) {
-
-                    message = {
-                        content: null,
-                        tool_call_text: answer,
-                        tool_calls: [{
-                            id: `local_${id}`,
-                            type: 'function',
-                            function: {
-                                name: call.name,
-                                arguments: JSON.stringify(call.arguments)
-                            }
-                        }]
-                    };
-                }
+                if (json) call = JSON.parse(json);
             } catch {
-                // Not a valid JSON tool call; treat as ordinary text.
+                // Not valid JSON.
+            }
+
+            // Optional model-specific fallback.
+            if (call == null && spec.tool_parser) {
+                call = new Function('text', spec.tool_parser)(answer);
+            }
+
+            if (call != null) {
+                if (!payload.tools.some(t => t.function.name === call.name) ||
+                    !call.arguments ||
+                    typeof call.arguments !== 'object' ||
+                    Array.isArray(call.arguments))
+                    throw Error('Invalid tool call');
+
+                message = {
+                    role: 'assistant',
+                    content: null,
+                    tool_call_text: answer,
+                    tool_calls: [{
+                        id: `local_${id}`,
+                        type: 'function',
+                        function: {
+                            name: call.name,
+                            arguments: JSON.stringify(call.arguments)
+                        }
+                    }]
+                };
             }
         }
 
