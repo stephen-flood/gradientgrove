@@ -173,6 +173,20 @@ if ("{arrow_navigation}" === "exercises" && page) {{
         }});
     }});
 }}
+const iframeObserver = new IntersectionObserver(entries => {{
+    for (const entry of entries) {{
+        if (!entry.isIntersecting) continue;
+
+        const iframe = entry.target;
+        iframe.src = iframe.dataset.src;
+        delete iframe.dataset.src;
+        iframeObserver.unobserve(iframe);
+    }}
+}});
+
+document.querySelectorAll("iframe[data-src]").forEach(iframe => {{
+    iframeObserver.observe(iframe);
+}});
 document.querySelectorAll("blockquote, pre").forEach(element => {{
     const button = document.createElement("button");
     button.type = "button";
@@ -522,7 +536,9 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         // Local inference using Transformers.js
         if (spec.backend === "transformersjs") {
             const choice = await ggAskLocal(
-                spec, api, {...payload, parameters}, onChunk,
+                // spec, api, {...payload, parameters}, onChunk,
+                {...spec, moderation: cfg.moderation},
+                api, {...payload, parameters}, onChunk,
                 status => { send.textContent = status; },
                 template => write("Serialized chat prompt:\n" + template)
             );
@@ -764,6 +780,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
         if (!pending || run.disabled) return;
         const call = pending;
         busy(true);
+        const normalSendLabel = send.textContent;
         write("Running tool: " + call.function.name);
         const box = log.lastElementChild;
         try {
@@ -800,6 +817,7 @@ document.querySelectorAll(".llm-chat").forEach(root => {
             write("Error: " + error.message);
         } finally {
             pending = null;
+            send.textContent = normalSendLabel;
             busy(false);
         }
     };
@@ -811,6 +829,9 @@ document.querySelectorAll(".llm-chat").forEach(root => {
 LLM_LOCAL_JS = r"""
 function localLLMWorker() {
     let lib, llm, modelId, queue = Promise.resolve();
+
+    let ort, guard, guardTokenizer, guardURL;
+    
     const send = (id, type, data = {}) => postMessage({id, type, ...data});
 
     async function run({id, spec, api, payload}) {
@@ -818,6 +839,88 @@ function localLLMWorker() {
             await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0');
         env.allowLocalModels = false;
         env.backends.onnx.wasm.numThreads = 1;
+
+        // Content moderation
+        const moderation = spec.moderation;
+        const input = api === 'completion' ? payload.prompt
+            : payload.messages.at(-1)?.role === 'user'
+                ? payload.messages.at(-1).content : null;
+
+        if (moderation && input) {
+            if (!guard || guardURL !== moderation.url) {
+                send(id, 'status', {text: 'Loading safety filter...'});
+
+                ort ??= await import(
+                    'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.mjs'
+                );
+                ort.env.wasm.wasmPaths =
+                    'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
+                ort.env.wasm.numThreads = 1;
+                
+                const base = moderation.url.replace(/\/$/, '');
+
+                const [tokenizerJSON, tokenizerConfig] = await Promise.all(
+                    ['tokenizer.json', 'tokenizer_config.json'].map(async file => {
+                        const response = await fetch(`${base}/${file}`);
+                        if (!response.ok)
+                            throw Error(`Cannot load ${file}: HTTP ${response.status}`);
+                        return response.json();
+                    })
+                );
+
+                guardTokenizer = new lib.PreTrainedTokenizer(
+                    tokenizerJSON, tokenizerConfig
+                );
+
+
+                const session = await ort.InferenceSession.create(
+                    moderation.url + '/model.onnx',
+                    {executionProviders: ['wasm']}
+                );
+                await guard?.release();
+                guard = session;
+                guardURL = moderation.url;
+            }
+
+            send(id, 'status', {text: 'Checking prompt...'});
+
+            const encoded = await guardTokenizer(input, {truncation: true});
+            const feeds = {};
+
+            for (const name of ['input_ids', 'attention_mask']) {
+                const tensor = encoded[name];
+                feeds[name] = new ort.Tensor(
+                    'int64',
+                    BigInt64Array.from(tensor.data, x => BigInt(x)),
+                    tensor.dims
+                );
+            }
+
+            const output = await guard.run(feeds);
+            const scores = output.probabilities?.data;
+            const index = moderation.unsafe_index;
+
+            if (!scores || !Number.isInteger(index) ||
+                index < 0 || index >= scores.length)
+                throw Error('Invalid moderation class index or ONNX output');
+
+            //if (scores[index] >= Number(moderation.threshold ?? 0.5))
+            //    throw Error('Prompt blocked by safety classifier.');
+            
+            const threshold = Number(moderation.threshold ?? 0.5);
+            const blocked = scores.length === 1
+                ? scores[0] < threshold
+                : scores[index] >= threshold;
+
+            if (blocked)
+                throw Error(
+                    `Prompt blocked: scores=${JSON.stringify(Array.from(scores))}, ` +
+                    `shape=${JSON.stringify(output.probabilities.dims)}`
+                );
+            // if (blocked)
+            //    throw Error('Prompt blocked by safety classifier.');
+        }
+
 
         // Load model, preferring GPU with CPU fallback.
         if (modelId !== spec.model_id) {
@@ -885,7 +988,7 @@ function localLLMWorker() {
             skip_special_tokens: false,
             clean_up_tokenization_spaces: false
         });
-        let next, answer = '';
+        let next, answer = '', generatedTokens = [];
 
         // Capture the probability distribution before sampling.
         class Capture extends LogitsProcessor {
@@ -918,6 +1021,8 @@ function localLLMWorker() {
                 if (!toolMode) send(id, 'chunk', {chunk});
             },
             token_callback_function: ids => {
+                generatedTokens.push(...ids);
+            
                 if (!next) return;
                 const {a, top, z} = next;
                 for (const k of ids) {
@@ -975,7 +1080,12 @@ function localLLMWorker() {
         //});
 
         // convert JSON into tool call
-        let message = {role: 'assistant', content: answer};
+        let message = {
+            role: 'assistant',
+            content: t.decode(generatedTokens, {
+                skip_special_tokens: true
+            })
+        };
 
         if (toolMode && payload.tool_choice !== 'none') {
             let call = null;
@@ -1075,7 +1185,15 @@ function ggAskLocal(spec, api, payload, onChunk, onStatus, onTemplate) {
         ggJobs.set(id, {
             resolve, reject, onChunk, onStatus, onTemplate
         });
-        ggWorker.postMessage({id, spec, api, payload});
+        // ggWorker.postMessage({id, spec, api, payload});
+        const workerSpec = spec.moderation
+            ? {...spec, moderation: {
+                ...spec.moderation,
+                url: new URL(spec.moderation.url, window.location.href).href
+            }}
+            : spec;
+
+        ggWorker.postMessage({id, spec: workerSpec, api, payload});
     });
 }
 """
@@ -1220,7 +1338,8 @@ def iframe_fence(source, language, css_class, options, md, **kwargs):
 
     return (
         '<p>'
-        f'<iframe{class_attr} src="{html.escape(url, quote=True)}" '
+        #f'<iframe{class_attr} src="{html.escape(url, quote=True)}" '
+        f'<iframe{class_attr} data-src="{html.escape(url, quote=True)}" '  # lazy loading
         f'title="{html.escape(title, quote=True)}" '
         f'style="width: {html.escape(str(width))} !important; '
         f'height: {html.escape(str(height))};"></iframe>'
