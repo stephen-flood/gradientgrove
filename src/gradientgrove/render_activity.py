@@ -101,8 +101,7 @@ HTML_TEMPLATE = """<!doctype html>
 </main>
 
 <script>
-const activity = new URLSearchParams(location.search).get("activity");
-const page = document.querySelector(`#activity-${{activity}}`);
+let activity, page;
 
 // function showStep(n) {{
 //     page.querySelectorAll(".exercise").forEach(step => step.hidden = true);
@@ -136,43 +135,96 @@ function showStep(n) {{
     history.replaceState(null, "", url);
 }}
 
-if (activity) {{
-    document.querySelector("#landing").hidden = true;
-    page.hidden = false;
 
-    document
-        .querySelector(`nav.top a[data-activity="${{activity}}"]`)
-        ?.classList.add("active");
+function showActivity() {{
+    globalThis.cancelPythonInput?.();
+    globalThis.cancelPythonInput = null;
 
-    if (page.querySelector(".exercise")) {{
-        const step = Number(
+    const params = new URLSearchParams(location.search);
+    activity = params.get("activity");
+    page = activity
+        ? document.getElementById(`activity-${{activity}}`)
+        : null;
+
+    // Hide every activity, then reveal the selected one.
+    document.querySelectorAll("section.activity").forEach(section => {{
+        section.hidden = true;
+    }});
+    document.getElementById("landing").hidden = !!page;
+
+    // Update the top navigation.
+    document.querySelectorAll("nav.top a[data-activity]").forEach(link => {{
+        link.classList.toggle(
+            "active", link.dataset.activity === activity
+        );
+    }});
+
+    if (page) {{
+        page.hidden = false;
+
+        if (page.querySelector(".exercise")) {{
+            showStep(Number(params.get("exercise") || 1));
+            return;
+        }}
+    }}
+
+    setTimeout(() => runVisiblePythonApps(), 0);
+}}
+
+// Handle all internal activity-navigation links.
+document.addEventListener("click", event => {{
+    const link = event.target.closest('a[href^="?"]');
+
+    if (!link || event.defaultPrevented || event.button !== 0 ||
+        event.ctrlKey || event.metaKey ||
+        event.shiftKey || event.altKey) return;
+
+    const url = new URL(link.href);
+
+    // Preserve exercise-by-exercise arrow navigation.
+    if ("{arrow_navigation}" === "exercises" &&
+        link.classList.contains("activity-arrow") &&
+        page?.contains(link)) {{
+
+        const delta = link.classList.contains("activity-arrow-right")
+            ? 1 : -1;
+        const current = Number(
             new URLSearchParams(location.search).get("exercise") || 1
         );
+        const next = current + delta;
+        const count = page.querySelectorAll(".exercise").length;
 
-        showStep(step);
+        if (next >= 1 && next <= count) {{
+            event.preventDefault();
+            showStep(next);
+            return;
+        }}
+
+        if (delta < 0 && Number(activity) > 1) {{
+            const previous = Number(activity) - 1;
+            const last = document.getElementById(
+                `activity-${{previous}}`
+            ).querySelectorAll(".exercise").length || 1;
+
+            url.searchParams.set("activity", previous);
+            url.searchParams.set("exercise", last);
+        }}
     }}
-}}
-if ("{arrow_navigation}" === "exercises" && page) {{
-    page.querySelectorAll(".activity-arrow").forEach(arrow => {{
-        arrow.addEventListener("click", event => {{
-            const delta = arrow.classList.contains("activity-arrow-right") ? 1 : -1;
-            const current = Number(new URLSearchParams(location.search).get("exercise") || 1);
-            const next = current + delta;
-            const count = page.querySelectorAll(".exercise").length;
 
-            if (next >= 1 && next <= count) {{
-                event.preventDefault();
-                showStep(next);
-            }} else if (delta < 0 && Number(activity) > 1) {{
-                event.preventDefault();
-                const previous = Number(activity) - 1;
-                const last = document.querySelector(`#activity-${{previous}}`)
-                    .querySelectorAll(".exercise").length || 1;
-                location.href = `?activity=${{previous}}&exercise=${{last}}`;
-            }}
-        }});
-    }});
-}}
+    event.preventDefault();
+    history.pushState(null, "", url);
+    showActivity();
+    window.scrollTo(0, 0);
+}});
+
+// Support the browser's Back and Forward buttons.
+window.addEventListener("popstate", showActivity);
+
+// Display the initial activity.
+showActivity();
+
+
+// only render visible iframes
 const iframeObserver = new IntersectionObserver(entries => {{
     for (const entry of entries) {{
         if (!entry.isIntersecting) continue;
@@ -187,6 +239,8 @@ const iframeObserver = new IntersectionObserver(entries => {{
 document.querySelectorAll("iframe[data-src]").forEach(iframe => {{
     iframeObserver.observe(iframe);
 }});
+
+
 document.querySelectorAll("blockquote, pre").forEach(element => {{
     const button = document.createElement("button");
     button.type = "button";
@@ -1528,7 +1582,7 @@ def llm_chat_fence(source, language, css_class, options, md, **kwargs):
         )
 
         system_html = (
-            '<label>System prompt: <textarea class="llm-system" rows="2">'
+            '<label>System prompt: <textarea class="llm-system" rows="1">'
             f'{html.escape(str(cfg.get("system", "")))}</textarea></label>'
             if cfg.get("show_system_prompt") else ""
         )

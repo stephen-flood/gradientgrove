@@ -950,3 +950,10 @@ pre {
     opacity: 1;
     text-decoration: underline;
 }
+
+.llm-system {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+}
